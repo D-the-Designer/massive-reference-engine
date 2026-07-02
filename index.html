@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<template id="__bundler_thumbnail" data-bg-color="#f4f2ee">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="50" r="26" fill="none" stroke="#2a2a2a" stroke-width="3"/>
+    <path d="M 30 55 Q 40 45 50 55 Q 60 65 70 55" fill="none" stroke="#2a2a2a" stroke-width="3" stroke-linecap="round"/>
+    <path d="M 30 45 Q 40 35 50 45 Q 60 55 70 45" fill="none" stroke="#2a2a2a" stroke-width="3" stroke-linecap="round"/>
+  </svg>
+</template>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: oklch(0.985 0.003 90); }
+  ::selection { background: oklch(0.2 0.01 90); color: white; }
+</style>
+</helmet>
+
+<div style="max-width:1400px; margin:0 auto; padding:56px 40px 100px; font-family:'Inter',sans-serif; color:oklch(0.2 0.005 90);">
+
+  <div style="margin-bottom:28px; max-width:820px;">
+    <div style="font-family:'Inter',sans-serif; font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:oklch(0.5 0.01 90); margin-bottom:14px;">Public Domain Library &middot; Sea Creatures Edition</div>
+    <h1 style="font-family:'Cormorant Garamond',serif; font-weight:600; font-size:48px; line-height:1.05; margin:0 0 16px;">Marine Life &amp; Sea Monsters</h1>
+    <p style="font-size:15.5px; line-height:1.6; color:oklch(0.38 0.01 90); margin:0 0 8px;">A growing collection of sea-creature illustrations and photos, licensed Public Domain or Creative Commons, ready to drop into a site or publication. Every card lists its exact license and links straight back to the Wikimedia Commons source page &mdash; click <b>Copy</b> for a ready-to-paste attribution that includes the license and source link.</p>
+    <p style="font-size:13px; line-height:1.5; color:oklch(0.55 0.01 90); margin:0;">This is a growing set ({{ totalCount }} items) &mdash; let me know which subcategory to expand further, and flag any thumbnail that fails to load (it'll show a placeholder card instead).</p>
+  </div>
+
+  <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:16px; margin-bottom:28px; padding:16px 0; border-top:1px solid oklch(0.9 0.005 90); border-bottom:1px solid oklch(0.9 0.005 90);">
+    <div style="display:flex; flex-wrap:wrap; gap:8px;">
+      <button onClick="{{ setCategoryAll }}" style="{{ tabStyleAll }}">All ({{ totalCount }})</button>
+      <sc-for list="{{ categoryTabs }}" as="tab" hint-placeholder-count="5">
+        <button onClick="{{ tab.onClick }}" style="{{ tab.style }}">{{ tab.label }}</button>
+      </sc-for>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <span style="font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:oklch(0.55 0.01 90);">Copy as</span>
+      <div style="display:flex; border:1px solid oklch(0.85 0.005 90); border-radius:8px; overflow:hidden;">
+        <button onClick="{{ setFormatPlain }}" style="{{ formatBtnStylePlain }}">Plain</button>
+        <button onClick="{{ setFormatMarkdown }}" style="{{ formatBtnStyleMarkdown }}">Markdown</button>
+        <button onClick="{{ setFormatHtml }}" style="{{ formatBtnStyleHtml }}">HTML</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="column-count:4; column-gap:22px;">
+    <sc-for list="{{ items }}" as="img" hint-placeholder-count="16">
+      <figure style="break-inside:avoid; margin:0 0 22px; background:white; border:1px solid oklch(0.9 0.005 90); border-radius:2px; overflow:hidden;">
+        <div style="position:relative; width:100%; background:oklch(0.95 0.004 90);">
+          <img data-full-src="{{ img.imgUrl }}" alt="{{ img.title }}" ref="{{ img.setRef }}" onerror="{{ img.handleError }}" onload="this.style.display='block'; this.nextElementSibling.style.display='none'; this.removeAttribute('data-retrying');" style="display:block; width:100%; height:auto; background:oklch(0.95 0.004 90);" />
+          <div class="fallback" style="display:none; width:100%; aspect-ratio:4/5; align-items:center; justify-content:center; text-align:center; padding:20px; box-sizing:border-box; background:repeating-linear-gradient(135deg, oklch(0.93 0.005 90), oklch(0.93 0.005 90) 8px, oklch(0.96 0.004 90) 8px, oklch(0.96 0.004 90) 16px);">
+            <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:oklch(0.5 0.01 90); line-height:1.6;">image unavailable<br/>{{ img.title }}</span>
+          </div>
+          <div style="position:absolute; top:10px; left:10px; background:oklch(0.2 0.005 90 / 0.72); color:white; font-size:10px; letter-spacing:0.05em; text-transform:uppercase; padding:4px 8px; border-radius:4px;">{{ img.categoryLabel }}</div>
+        </div>
+        <figcaption style="padding:14px 16px 16px;">
+          <div style="font-family:'Cormorant Garamond',serif; font-size:18px; font-weight:600; line-height:1.3; margin-bottom:4px;">{{ img.title }}</div>
+          <div style="font-size:12.5px; color:oklch(0.45 0.01 90); line-height:1.5;">{{ img.artist }}, {{ img.year }}</div>
+          <div style="font-size:11px; color:oklch(0.6 0.01 90); margin-top:4px; margin-bottom:12px;">{{ img.source }} &middot; {{ img.license }}</div>
+          <div style="display:flex; gap:8px; margin-bottom:8px;">
+            <button onClick="{{ img.copyHandler }}" style="{{ img.copyButtonStyle }}">{{ img.copyLabel }}</button>
+            <a href="{{ img.commonsUrl }}" target="_blank" rel="noopener" style="flex:0 0 auto; display:flex; align-items:center; justify-content:center; padding:8px 12px; font-size:12px; font-weight:500; color:oklch(0.4 0.01 90); border:1px solid oklch(0.85 0.005 90); border-radius:6px; text-decoration:none; background:white;">Source &#8599;</a>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <select value="{{ img.selectedWidth }}" onChange="{{ img.widthChangeHandler }}" style="flex:0 0 auto; padding:8px 8px; font-size:12px; border-radius:6px; border:1px solid oklch(0.85 0.005 90); background:white; color:oklch(0.4 0.01 90);">
+              <sc-for list="{{ img.resolutionOptions }}" as="opt" hint-placeholder-count="4">
+                <option value="{{ opt.value }}">{{ opt.label }}</option>
+              </sc-for>
+            </select>
+            <button onClick="{{ img.downloadHandler }}" style="flex:1; padding:8px 12px; font-size:12px; font-weight:500; border-radius:6px; border:1px solid oklch(0.2 0.005 90); cursor:pointer; color:oklch(0.2 0.005 90); background:white;">{{ img.downloadLabel }}</button>
+          </div>
+        </figcaption>
+      </figure>
+    </sc-for>
+  </div>
+
+  <div style="display:flex; align-items:center; gap:14px; margin-top:48px; padding-top:24px; border-top:1px solid oklch(0.9 0.005 90);">
+    <img src="assets/curator-avatar-small.png" alt="D the Designer" style="width:52px; height:52px; border-radius:50%; object-fit:cover; flex:0 0 auto;" />
+    <div>
+      <div style="font-size:13px; font-weight:600; color:oklch(0.25 0.005 90);">Curated by D the Designer</div>
+      <a href="https://x.com/D_the_Designer" target="_blank" rel="noopener" style="font-size:12.5px; color:oklch(0.5 0.01 90); text-decoration:none;">@D_the_Designer on X</a>
+    </div>
+  </div>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const CATEGORIES = [
+  { key: 'jelly', label: 'Jellyfish & Cnidarians' },
+  { key: 'cephalopod', label: 'Cephalopods & Molluscs' },
+  { key: 'crustacean', label: 'Crustaceans & Echinoderms' },
+  { key: 'coral', label: 'Coral, Sponges & Colonial Life' },
+  { key: 'monster', label: 'Fish & Sea Monsters' },
+];
+
+const HAECKEL = (title, file, category) => ({
+  title, artist: 'Ernst Haeckel', year: '1904', source: 'Kunstformen der Natur', category, file, license: 'Public Domain',
+});
+
+const NOAA = (title, file, category, source, license) => ({
+  title, artist: 'NOAA', year: '21st c.', source: source || 'NOAA Photo Library', category, file, license: license || 'Public Domain',
+});
+
+const ITEMS = [
+  // ---------- JELLYFISH & CNIDARIANS ----------
+  HAECKEL('Discomedusae (Jellyfish)', 'Haeckel_Discomedusae.jpg', 'jelly'),
+  HAECKEL('Siphonophorae', 'Haeckel_Siphonophorae.jpg', 'jelly'),
+  HAECKEL('Cubomedusae (Box Jellyfish)', 'Haeckel_Cubomedusae.jpg', 'jelly'),
+  HAECKEL('Trachomedusae', 'Haeckel_Trachomedusae.jpg', 'jelly'),
+  HAECKEL('Anthomedusae', 'Haeckel_Anthomedusae.jpg', 'jelly'),
+  HAECKEL('Narcomedusae', 'Haeckel_Narcomedusae.jpg', 'jelly'),
+  HAECKEL('Leptomedusae', 'Haeckel_Leptomedusae.jpg', 'jelly'),
+  HAECKEL('Peromedusae', 'Haeckel_Peromedusae.jpg', 'jelly'),
+  HAECKEL('Actiniae (Sea Anemones)', 'Haeckel_Actiniae.jpg', 'jelly'),
+  HAECKEL('Ctenophorae (Comb Jellies)', 'Haeckel_Ctenophorae.jpg', 'jelly'),
+  HAECKEL('Stauromedusae (Stalked Jellyfish)', 'Haeckel_Stauromedusae.jpg', 'jelly'),
+  HAECKEL('Tubulariae (Hydroids)', 'Haeckel_Tubulariae.jpg', 'jelly'),
+
+  // ---------- CEPHALOPODS & MOLLUSCS ----------
+  HAECKEL('Prosobranchia (Sea Snails)', 'Haeckel_Prosobranchia.jpg', 'cephalopod'),
+  HAECKEL('Ascidiae (Sea Squirts)', 'Haeckel_Ascidiae.jpg', 'cephalopod'),
+  HAECKEL('Nudibranchia (Sea Slugs)', 'Haeckel_Nudibranchia.jpg', 'cephalopod'),
+  HAECKEL('Ammonitida (Ammonites)', 'Haeckel_Ammonitida.jpg', 'cephalopod'),
+  HAECKEL('Amphoridea (Urn Animals)', 'Haeckel_Amphoridea.jpg', 'cephalopod'),
+  { title: 'Colossal Octopus', artist: 'Pierre Denys de Montfort', year: '1801', source: 'Histoire Naturelle des Mollusques', category: 'cephalopod', file: 'Colossal_octopus_by_Pierre_Denys_de_Montfort.jpg', license: 'Public Domain' },
+  { title: 'Poulpe Colossal', artist: 'Pierre Denys de Montfort', year: '1810', source: 'Histoire Naturelle des Mollusques', category: 'cephalopod', file: 'Denys_de_Montfort_Poulpe_Colossal.jpg', license: 'Public Domain' },
+  { title: 'Tamatori Attacked by the Octopus', artist: 'Utagawa Kuniyoshi', year: '19th c.', source: 'Ukiyo-e woodblock print', category: 'cephalopod', file: 'Tamakatzura_Tamatori_attacked_by_the_octopus.jpg', license: 'Public Domain' },
+
+  // ---------- CRUSTACEANS & ECHINODERMS ----------
+  HAECKEL('Decapoda (Crabs)', 'Haeckel_Decapoda.jpg', 'crustacean'),
+  HAECKEL('Cirripedia (Barnacles)', 'Haeckel_Cirripedia.jpg', 'crustacean'),
+  HAECKEL('Copepoda', 'Haeckel_Copepoda.jpg', 'crustacean'),
+  HAECKEL('Asteridea (Starfish)', 'Haeckel_Asteridea.jpg', 'crustacean'),
+  HAECKEL('Ophiodea (Brittle Stars)', 'Haeckel_Ophiodea.jpg', 'crustacean'),
+  HAECKEL('Echinidea (Sea Urchins)', 'Haeckel_Echinidea.jpg', 'crustacean'),
+  HAECKEL('Crinoidea (Sea Lilies)', 'Haeckel_Crinoidea.jpg', 'crustacean'),
+  HAECKEL('Cystoidea', 'Haeckel_Cystoidea.jpg', 'crustacean'),
+  HAECKEL('Blastoidea', 'Haeckel_Blastoidea.jpg', 'crustacean'),
+  HAECKEL('Chaetopoda (Bristle Worms)', 'Haeckel_Chaetopoda.jpg', 'crustacean'),
+
+  // ---------- CORAL, SPONGES & COLONIAL LIFE ----------
+  HAECKEL('Bryozoa', 'Haeckel_Bryozoa.jpg', 'coral'),
+  HAECKEL('Hexacoralla (Stony Corals)', 'Haeckel_Hexacoralla.jpg', 'coral'),
+  HAECKEL('Tetracoralla (Stony Corals)', 'Haeckel_Tetracoralla.jpg', 'coral'),
+  HAECKEL('Gorgonida (Sea Fans)', 'Haeckel_Gorgonida.jpg', 'coral'),
+  HAECKEL('Pennatulida (Sea Pens)', 'Haeckel_Pennatulida.jpg', 'coral'),
+  HAECKEL('Calcispongiae (Sponges)', 'Haeckel_Calcispongiae.jpg', 'coral'),
+  HAECKEL('Polycyttaria (Colonial Radiolarians)', 'Haeckel_Polycyttaria.jpg', 'coral'),
+  HAECKEL('Spumellaria (Radiolarians)', 'Haeckel_Spumellaria.jpg', 'coral'),
+  HAECKEL('Discoidea (Radiolarians)', 'Haeckel_Discoidea.jpg', 'coral'),
+  HAECKEL('Cyrtoidea (Radiolarians)', 'Haeckel_Cyrtoidea.jpg', 'coral'),
+  HAECKEL('Spyroidea (Radiolarians)', 'Haeckel_Spyroidea.jpg', 'coral'),
+  HAECKEL('Stephoidea (Radiolarians)', 'Haeckel_Stephoidea.jpg', 'coral'),
+  HAECKEL('Acanthometra (Radiolarians)', 'Haeckel_Acanthometra.jpg', 'coral'),
+  HAECKEL('Acanthophracta (Radiolarians)', 'Haeckel_Acanthophracta.jpg', 'coral'),
+  HAECKEL('Peridinea (Dinoflagellates)', 'Haeckel_Peridinea.jpg', 'coral'),
+
+  // ---------- FISH & SEA MONSTERS ----------
+  HAECKEL('Ostraciontes (Boxfish)', 'Haeckel_Ostraciontes.jpg', 'monster'),
+  HAECKEL('Teleostei (Bony Fishes)', 'Haeckel_Teleostei.jpg', 'monster'),
+  { title: 'The Great Wave off Kanagawa', artist: 'Katsushika Hokusai', year: 'c. 1831', source: 'Ukiyo-e woodblock print', category: 'monster', file: 'Tsunami_by_hokusai_19th_century.jpg', license: 'Public Domain' },
+  { title: 'Carta Marina (Sea Monsters)', artist: 'Olaus Magnus', year: '1539', source: 'James Ford Bell Library', category: 'monster', file: 'Carta_Marina.jpeg', license: 'Public Domain' },
+  { title: 'Thule, Carta Marina Detail', artist: 'Olaus Magnus', year: '1539', source: 'Carta Marina', category: 'monster', file: 'Thule_carta_marina_Olaus_Magnus.jpg', license: 'Public Domain' },
+  { title: 'The Kraken', artist: 'W. H. Lizars, after Denys de Montfort', year: '1839', source: 'The Naturalist\u2019s Library', category: 'monster', file: 'Naturalistslibra25-p326a-kraken.jpg', license: 'Public Domain' },
+  { title: 'Ulysses and the Sirens', artist: 'John William Waterhouse', year: '1891', source: 'National Gallery of Victoria', category: 'monster', file: 'John_William_Waterhouse_-_Ulysses_and_the_Sirens_-_Google_Art_Project.jpg', license: 'Public Domain' },
+
+  // ---------- NOAA PHOTOGRAPHS (public domain, U.S. government work) ----------
+  NOAA('Siphonophore', 'CINMS - Siphonophore (29896221962).jpg', 'jelly', 'Channel Islands National Marine Sanctuary'),
+  NOAA('Spanish Shawl Nudibranch', 'CINMS - spanish shawl nudibranch (27416199230).jpg', 'cephalopod', 'Channel Islands National Marine Sanctuary'),
+  NOAA('Hermissenda Nudibranch', 'CINMS - hermissenda nudibranch (27878887602).jpg', 'cephalopod', 'Channel Islands National Marine Sanctuary'),
+  NOAA('Octopus, Arguello Canyon', 'CINMS - Octopus - Arguello Canyon (31212036072).jpg', 'cephalopod', 'Channel Islands National Marine Sanctuary'),
+  NOAA('White Abalone', 'CINMS-white abalone (27040031854).jpg', 'cephalopod', 'Channel Islands National Marine Sanctuary'),
+  NOAA('Dumbo Octopus (Opisthoteuthis sp.)', 'Opisthoteuthis sp. at Monterey Bay Aquarium in 2017.jpg', 'cephalopod', 'Monterey Bay Aquarium', 'CC BY-SA'),
+  NOAA('Mantis (Pistol) Shrimp', 'CINMS -- Mantis Pistol Shrimp (36763273031).jpg', 'crustacean', 'Channel Islands National Marine Sanctuary'),
+  NOAA('California Spiny Lobster', 'CINMS -- California Spiny Lobster (36032261285).jpg', 'crustacean', 'Channel Islands National Marine Sanctuary'),
+  NOAA('Stereomastis sculpta (Deep-Sea Crustacean)', 'Stereomastis sculpta (syn. Polycheles sculptus).jpg', 'crustacean', 'Wikimedia Commons', 'CC BY-SA'),
+  NOAA('Evadne spinifera (Zooplankton)', 'Evadne spinifera.jpg', 'crustacean', 'Wikimedia Commons', 'CC BY-SA'),
+  NOAA('Mola Mola (Ocean Sunfish)', 'CINMS -- Mola Mola at Santa Barbara Island South (35976288160).jpg', 'monster', 'Channel Islands National Marine Sanctuary'),
+  NOAA('Scorpionfish', 'CINMS -- Scorpionfish at Santa Barbara Island North (36763204651).jpg', 'monster', 'Channel Islands National Marine Sanctuary'),
+  NOAA('Garibaldi', 'CINMS - Garibaldi (33029439733).jpg', 'monster', 'Channel Islands National Marine Sanctuary'),
+  NOAA('Crevice Kelpfish', 'CINMS - Crevice Kelpfish (33963796762).jpg', 'monster', 'Channel Islands National Marine Sanctuary'),
+  NOAA('Bat Ray, Anacapa Island', 'Bat Ray at Anacapa Island, Channel Islands National Marine Sanctuary (43102098480).jpg', 'monster', 'Channel Islands National Marine Sanctuary'),
+  NOAA('Deep-Sea Exploration', 'Expl0387 - Flickr - NOAA Photo Library.jpg', 'monster', 'NOAA Photo Library'),
+  NOAA('Deep-Sea Exploration', 'Expl2358 - Flickr - NOAA Photo Library.jpg', 'monster', 'NOAA Photo Library'),
+  NOAA('Deep-Sea Fish', 'Fish3244 - Flickr - NOAA Photo Library.jpg', 'monster', 'NOAA Photo Library'),
+  NOAA('Deep-Sea Fish', 'Fish3268 - Flickr - NOAA Photo Library.jpg', 'monster', 'NOAA Photo Library'),
+];
+
+class Component extends DCLogic {
+  state = { items: ITEMS, categories: CATEGORIES, category: 'all', format: 'plain', copiedFile: null, widthByFile: {}, downloadingFile: null };
+
+  RESOLUTIONS = [
+    { value: '400', label: 'Small (400px)' },
+    { value: '800', label: 'Medium (800px)' },
+    { value: '1600', label: 'Large (1600px)' },
+    { value: 'original', label: 'Original' },
+  ];
+
+  buildAttribution(it, imgUrl, commonsUrl, format) {
+    const license = it.license || 'Public Domain';
+    if (format === 'markdown') {
+      return '![' + it.title + '](' + imgUrl + ')\n*\u201c' + it.title + '\u201d* by ' + it.artist + ', ' + it.year + ' \u2014 ' + it.source + '. ' + license + '. Source: [' + commonsUrl + '](' + commonsUrl + ')';
+    }
+    if (format === 'html') {
+      return '<figure>\n  <img src="' + imgUrl + '" alt="' + it.title + '">\n  <figcaption>\u201c' + it.title + '\u201d by ' + it.artist + ', ' + it.year + '. ' + license + '. Source: <a href="' + commonsUrl + '">' + commonsUrl + '</a></figcaption>\n</figure>';
+    }
+    return '\u201c' + it.title + '\u201d by ' + it.artist + ', ' + it.year + '. ' + it.source + '. ' + license + '. Source: ' + commonsUrl;
+  }
+
+  getObserver() {
+    if (!this._observer) {
+      this._observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const el = entry.target;
+            if (!el.src && el.dataset.fullSrc) el.src = el.dataset.fullSrc;
+            this._observer.unobserve(el);
+          }
+        });
+      }, { rootMargin: '600px 0px' });
+    }
+    return this._observer;
+  }
+
+  handleImgError(e) {
+    const el = e.target;
+    const retryCount = parseInt(el.dataset.retryCount || '0', 10);
+    if (retryCount < 3) {
+      el.dataset.retryCount = String(retryCount + 1);
+      el.setAttribute('data-retrying', '1');
+      const delay = 1000 * Math.pow(2, retryCount);
+      setTimeout(() => {
+        const base = el.dataset.fullSrc;
+        el.src = base + (base.includes('?') ? '&' : '?') + 'retry=' + (retryCount + 1) + '_' + Date.now();
+      }, delay);
+    } else {
+      el.style.display = 'none';
+      const fb = el.nextElementSibling;
+      if (fb) fb.style.display = 'flex';
+    }
+  }
+
+  async handleDownload(it, width) {
+    const w = width || '800';
+    const url = 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(it.file) + (w === 'original' ? '' : '?width=' + w);
+    this.setState({ downloadingFile: it.file });
+    const finish = () => this.setState({ downloadingFile: null });
+    try {
+      const resp = await fetch(url);
+      const blob = await resp.blob();
+      const ext = blob.type.includes('png') ? 'png' : 'jpg';
+      const base = it.file.replace(/\.[^/.]+$/, '').replace(/[^a-z0-9_-]+/gi, '_');
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objUrl;
+      a.download = base + '_' + w + '.' + ext;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(objUrl), 4000);
+    } catch (e) {
+      window.open(url, '_blank');
+    }
+    finish();
+  }
+
+  handleCopy(it, imgUrl, commonsUrl) {
+    const text = this.buildAttribution(it, imgUrl, commonsUrl, this.state.format);
+    const done = () => {
+      this.setState({ copiedFile: it.file });
+      clearTimeout(this._copyTimer);
+      this._copyTimer = setTimeout(() => this.setState({ copiedFile: null }), 1600);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(done);
+    } else {
+      done();
+    }
+  }
+
+  renderVals() {
+    const categories = this.state.categories || [];
+    const categoryLabelMap = {};
+    categories.forEach((c) => { categoryLabelMap[c.key] = c.label; });
+
+    const tabBaseStyle = 'padding:8px 14px; font-size:12.5px; font-weight:500; border-radius:20px; border:1px solid oklch(0.85 0.005 90); background:white; color:oklch(0.35 0.01 90); cursor:pointer;';
+    const tabActiveStyle = 'padding:8px 14px; font-size:12.5px; font-weight:500; border-radius:20px; border:1px solid oklch(0.2 0.005 90); background:oklch(0.2 0.005 90); color:white; cursor:pointer;';
+
+    const counts = {};
+    (this.state.items || []).forEach((it) => { counts[it.category] = (counts[it.category] || 0) + 1; });
+
+    const categoryTabs = categories.map((c) => ({
+      label: c.label + ' (' + (counts[c.key] || 0) + ')',
+      style: this.state.category === c.key ? tabActiveStyle : tabBaseStyle,
+      onClick: () => this.setState({ category: c.key }),
+    }));
+
+    const formatBtn = (key) => {
+      const active = this.state.format === key;
+      return 'padding:8px 12px; font-size:11.5px; font-weight:500; border:none; cursor:pointer; ' +
+        (active ? 'background:oklch(0.2 0.005 90); color:white;' : 'background:white; color:oklch(0.45 0.01 90);');
+    };
+
+    const allItems = this.state.items || [];
+    const filtered = this.state.category === 'all' ? allItems : allItems.filter((it) => it.category === this.state.category);
+
+    const items = filtered.map((it) => {
+      const commonsUrl = 'https://commons.wikimedia.org/wiki/File:' + encodeURIComponent(it.file);
+      const imgUrl = 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(it.file) + '?width=500';
+      const isCopied = this.state.copiedFile === it.file;
+      const setRef = (el) => {
+        if (!el) return;
+        this.getObserver().observe(el);
+      };
+      const selectedWidth = this.state.widthByFile[it.file] || '800';
+      const isDownloading = this.state.downloadingFile === it.file;
+      return {
+        ...it,
+        imgUrl,
+        commonsUrl,
+        categoryLabel: categoryLabelMap[it.category] || it.category,
+        copyLabel: isCopied ? 'Copied \u2713' : 'Copy attribution',
+        copyButtonStyle: 'flex:1; padding:8px 12px; font-size:12px; font-weight:500; border-radius:6px; border:none; cursor:pointer; color:white; background:' + (isCopied ? 'oklch(0.5 0.12 150)' : 'oklch(0.2 0.005 90)') + ';',
+        copyHandler: () => this.handleCopy(it, imgUrl, commonsUrl),
+        setRef,
+        handleError: (e) => this.handleImgError(e),
+        resolutionOptions: this.RESOLUTIONS,
+        selectedWidth,
+        widthChangeHandler: (e) => {
+          const val = e.target.value;
+          this.setState((s) => ({ widthByFile: { ...s.widthByFile, [it.file]: val } }));
+        },
+        downloadLabel: isDownloading ? 'Preparing\u2026' : 'Download',
+        downloadHandler: () => this.handleDownload(it, this.state.widthByFile[it.file] || '800'),
+      };
+    });
+
+    return {
+      items,
+      categoryTabs,
+      totalCount: allItems.length,
+      tabStyleAll: this.state.category === 'all' ? tabActiveStyle : tabBaseStyle,
+      setCategoryAll: () => this.setState({ category: 'all' }),
+      formatBtnStylePlain: formatBtn('plain'),
+      formatBtnStyleMarkdown: formatBtn('markdown'),
+      formatBtnStyleHtml: formatBtn('html'),
+      setFormatPlain: () => this.setState({ format: 'plain' }),
+      setFormatMarkdown: () => this.setState({ format: 'markdown' }),
+      setFormatHtml: () => this.setState({ format: 'html' }),
+    };
+  }
+}
+
+</script>
+</body>
+</html>
