@@ -322,6 +322,9 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
   background: var(--bg-editor); color: var(--ink); padding: 8px 10px; font: inherit; font-size: 13px;
 }
 .field textarea { resize: vertical; }
+.provider-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.provider-grid .field { margin: 4px 0 12px; }
+.provider-grid input { width: 100%; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--bg-editor); color: var(--ink); padding: 8px 10px; }
 .check-row { display: flex; align-items: flex-start; gap: 8px; padding: 5px 2px; font-size: 13px; }
 .check-row input { margin-top: 2px; }
 .check-row .muted { display: block; }
@@ -406,6 +409,7 @@ table.routing th { background: var(--bg-panel); font-size: 11px; text-transform:
   #statusbar { gap: 8px; overflow-x: auto; }
   .first-run { align-items: flex-start; }
   .diff-cols { grid-template-columns: 1fr; }
+  .provider-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 420px) {

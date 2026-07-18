@@ -72,6 +72,7 @@ Models are replaceable adapters, chosen per task and never hidden:
 | --- | --- | --- |
 | **Preview (no AI)** | stays local | Built-in canned transforms so the whole workflow is testable with no model connected. Deterministic, clearly labeled, not intelligent. |
 | **Ollama** | stays local | Point at a local Ollama server (Tools ▸ Providers). “Detect installed models” lists what's pulled. If the browser can't reach it from a `file://` page, start Ollama with `OLLAMA_ORIGINS='*' ollama serve`. |
+| **KoboldAI / KoboldCpp** | stays local | Reuses the writing model loaded by a local Kobold server, normally at `http://localhost:5001`. Writer can detect its model and exposes temperature, repetition penalty, and output length. |
 | **Anthropic** | leaves device | One cloud adapter behind explicit consent. Requires your API key (session-only by default; opt-in browser storage — a web page cannot use the OS keychain, so prefer session-only on shared machines). |
 
 **Privacy scope** is declared before generation and recorded per revision:

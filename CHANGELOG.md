@@ -8,3 +8,4 @@
 - Markdown, text, and HTML copy exports.
 - Automated browser tests and GitHub Actions validation.
 - First-run guidance, privacy receipts, recovery snapshots, and responsive UI.
+- Local KoboldAI/KoboldCpp writing-model provider with detection and generation controls.

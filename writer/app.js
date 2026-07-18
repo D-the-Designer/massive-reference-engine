@@ -54,6 +54,7 @@ let dirHandle = null;        // File System Access directory handle (optional)
 let anthropicKey = null;     // in-memory unless user opts into browser storage
 let pendingOp = null;        // the AI operation currently in preflight/diff
 let ollamaModels = null;     // detected model list, session only
+let koboldModels = null;     // model currently loaded by KoboldAI/KoboldCpp
 
 function defaultProject() {
   const now = Date.now();
@@ -84,6 +85,11 @@ function defaultProject() {
       cloudConsent: false,
       ollamaHost: "http://localhost:11434",
       ollamaModel: "qwen3:8b",
+      koboldHost: "http://localhost:5001",
+      koboldModel: "Kobold writing model",
+      koboldTemperature: 0.8,
+      koboldRepPenalty: 1.1,
+      koboldMaxTokens: 512,
       panels: { project: true, sidecar: true },
       contextChecked: null, // filled on first use
     },
@@ -326,6 +332,59 @@ const OllamaProvider = {
   },
 };
 
+const KoboldProvider = {
+  id: "kobold",
+  name: "KoboldAI / KoboldCpp (local)",
+  kind: "local",
+  note: "Uses the writing model already loaded by a local KoboldAI or KoboldCpp server. Nothing leaves this device.",
+  models() {
+    const models = koboldModels && koboldModels.length ? koboldModels : [project.settings.koboldModel || "Kobold writing model"];
+    return models.map((m) => ({ id: m, label: m + (koboldModels ? "" : " (configured)"), provider: "kobold" }));
+  },
+  async detect() {
+    const host = project.settings.koboldHost.replace(/\/$/, "");
+    let names = [];
+    try {
+      const res = await fetch(host + "/api/v1/model");
+      if (res.ok) {
+        const data = await res.json();
+        const name = data.result || data.model || data.name;
+        if (name) names = [String(name)];
+      }
+    } catch (_) { /* try the OpenAI-compatible endpoint below */ }
+    if (!names.length) {
+      const res = await fetch(host + "/v1/models");
+      if (!res.ok) throw new Error("Kobold server responded " + res.status);
+      const data = await res.json();
+      names = (data.data || []).map((m) => m.id).filter(Boolean);
+    }
+    if (!names.length) throw new Error("Server reachable, but no loaded model was reported.");
+    koboldModels = names;
+    project.settings.koboldModel = names[0];
+    return names;
+  },
+  async call({ system, messages }) {
+    const host = project.settings.koboldHost.replace(/\/$/, "");
+    const prompt = [system, ...messages.map((m) => `${m.role === "assistant" ? "Assistant" : "User"}: ${m.content}`), "Assistant:"].join("\n\n");
+    const res = await fetch(host + "/api/v1/generate", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        prompt,
+        max_length: Number(project.settings.koboldMaxTokens) || 512,
+        temperature: Number(project.settings.koboldTemperature) || 0.8,
+        rep_pen: Number(project.settings.koboldRepPenalty) || 1.1,
+        stop_sequence: ["\nUser:", "\n\nUser:"],
+      }),
+    });
+    if (!res.ok) throw new Error("Kobold error " + res.status + " — is KoboldAI/KoboldCpp running with a model loaded?");
+    const data = await res.json();
+    const text = data.results && data.results[0] && data.results[0].text;
+    if (!text) throw new Error("Kobold returned no generated text.");
+    return String(text).trim();
+  },
+};
+
 const AnthropicProvider = {
   id: "anthropic",
   name: "Anthropic (cloud)",
@@ -361,7 +420,7 @@ const AnthropicProvider = {
   },
 };
 
-const PROVIDERS = { preview: PreviewProvider, ollama: OllamaProvider, anthropic: AnthropicProvider };
+const PROVIDERS = { preview: PreviewProvider, ollama: OllamaProvider, kobold: KoboldProvider, anthropic: AnthropicProvider };
 const currentProvider = () => PROVIDERS[project.settings.providerId] || PreviewProvider;
 const currentModelLabel = () => {
   const p = currentProvider();
@@ -979,7 +1038,7 @@ async function fsSyncAll() {
       note: "Optional metadata. The Markdown files are canonical; this file is never required to open them. No secrets are stored here.",
       docs: project.docs.map((d) => ({ id: d.id, folder: d.folder, name: d.name, file: slug(d.name) + ".md", created: d.created, modified: d.modified })),
       activeDocId: project.activeDocId,
-      settings: { theme: project.settings.theme, font: project.settings.font, size: project.settings.size, privacy: project.settings.privacy, providerId: project.settings.providerId, modelId: project.settings.modelId, ollamaHost: project.settings.ollamaHost, ollamaModel: project.settings.ollamaModel },
+      settings: { theme: project.settings.theme, font: project.settings.font, size: project.settings.size, privacy: project.settings.privacy, providerId: project.settings.providerId, modelId: project.settings.modelId, ollamaHost: project.settings.ollamaHost, ollamaModel: project.settings.ollamaModel, koboldHost: project.settings.koboldHost, koboldModel: project.settings.koboldModel, koboldTemperature: project.settings.koboldTemperature, koboldRepPenalty: project.settings.koboldRepPenalty, koboldMaxTokens: project.settings.koboldMaxTokens },
     };
     await fsWriteFile(dirHandle, "writer-project.json", JSON.stringify(meta, null, 2));
     $("#status-save").textContent = "Saved · folder synced";
@@ -1169,6 +1228,19 @@ function showProviders() {
       <button class="secondary-btn" id="pr-detect">Detect installed models</button>
       <span class="muted" id="pr-detect-out">${ollamaModels ? ollamaModels.length + " detected" : ""}</span>
     </div>
+    <div class="model-group"><div class="model-group-head">KoboldAI / KoboldCpp (local writing models)</div>
+      <div class="field"><label class="field-label" for="pr-kobold-host">Server</label>
+        <input type="text" id="pr-kobold-host" value="${esc(project.settings.koboldHost || "http://localhost:5001")}"></div>
+      <div class="field"><label class="field-label" for="pr-kobold-model">Loaded model label</label>
+        <input type="text" id="pr-kobold-model" value="${esc(project.settings.koboldModel || "Kobold writing model")}"></div>
+      <div class="provider-grid">
+        <div class="field"><label class="field-label" for="pr-kobold-temp">Temperature</label><input type="number" id="pr-kobold-temp" min="0" max="2" step="0.05" value="${Number(project.settings.koboldTemperature ?? 0.8)}"></div>
+        <div class="field"><label class="field-label" for="pr-kobold-rep">Repetition penalty</label><input type="number" id="pr-kobold-rep" min="1" max="2" step="0.05" value="${Number(project.settings.koboldRepPenalty ?? 1.1)}"></div>
+        <div class="field"><label class="field-label" for="pr-kobold-max">Maximum new tokens</label><input type="number" id="pr-kobold-max" min="32" max="4096" step="32" value="${Number(project.settings.koboldMaxTokens ?? 512)}"></div>
+      </div>
+      <button class="secondary-btn" id="pr-kobold-detect">Detect loaded writing model</button>
+      <span class="muted" id="pr-kobold-out">${koboldModels ? "Found: " + esc(koboldModels.join(", ")) : ""}</span>
+    </div>
     <div class="model-group"><div class="model-group-head">Anthropic (cloud)</div>
       <div class="field"><label class="field-label" for="pr-key">API key</label>
         <input type="password" id="pr-key" placeholder="${anthropicKey ? "•••• key set for this session" : "sk-ant-…"}"></div>
@@ -1191,10 +1263,27 @@ function showProviders() {
       out.textContent = "Not reachable (" + e.message + "). Is Ollama running? You may need OLLAMA_ORIGINS set — see README.";
     }
   });
+  $("#pr-kobold-detect", card).addEventListener("click", async () => {
+    project.settings.koboldHost = $("#pr-kobold-host", card).value.trim() || "http://localhost:5001";
+    const out = $("#pr-kobold-out", card);
+    out.textContent = "Detecting…";
+    try {
+      const models = await KoboldProvider.detect();
+      $("#pr-kobold-model", card).value = models[0];
+      out.textContent = "Found: " + models.join(", ");
+    } catch (e) {
+      out.textContent = "Not reachable (" + e.message + "). Start KoboldAI/KoboldCpp with a model loaded.";
+    }
+  });
   $("#pr-cancel", card).addEventListener("click", closeModal);
   $("#pr-save", card).addEventListener("click", () => {
     project.settings.ollamaHost = $("#pr-ollama-host", card).value.trim() || "http://localhost:11434";
     project.settings.ollamaModel = $("#pr-ollama-model", card).value.trim() || "qwen3:8b";
+    project.settings.koboldHost = $("#pr-kobold-host", card).value.trim() || "http://localhost:5001";
+    project.settings.koboldModel = $("#pr-kobold-model", card).value.trim() || "Kobold writing model";
+    project.settings.koboldTemperature = Number($("#pr-kobold-temp", card).value) || 0.8;
+    project.settings.koboldRepPenalty = Number($("#pr-kobold-rep", card).value) || 1.1;
+    project.settings.koboldMaxTokens = Number($("#pr-kobold-max", card).value) || 512;
     const key = $("#pr-key", card).value.trim();
     if (key) anthropicKey = key;
     if ($("#pr-remember", card).checked && anthropicKey) localStorage.setItem(SECRET_KEY, anthropicKey);

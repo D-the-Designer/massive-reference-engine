@@ -176,4 +176,40 @@ test.describe("Writer release contract", () => {
     await expect(editor).toHaveValue(before);
     await expect(page.getByRole("button", { name: "Revisions 0" })).toBeVisible();
   });
+
+  test("Kobold writing provider is available and stays local", async ({ page }) => {
+    await page.getByRole("button", { name: /Model:/ }).first().click();
+    await expect(page.getByRole("button", { name: /Kobold writing model/ })).toContainText("stays local");
+  });
+
+  test("Kobold generation follows preflight and revision acceptance", async ({ page }) => {
+    await page.route("http://localhost:5001/api/v1/generate", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        headers: { "access-control-allow-origin": "*" },
+        body: JSON.stringify({ results: [{ text: "The fog folded over the harbor lights." }] }),
+      });
+    });
+    const editor = page.locator("#editor");
+    const before = await editor.inputValue();
+    await editor.fill(before + " ");
+    await editor.fill(before);
+    await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+    await page.evaluate(() => {
+      const p = JSON.parse(localStorage.getItem("writer.project.v1"));
+      p.settings.providerId = "kobold";
+      p.settings.modelId = "Kobold writing model";
+      p.settings.koboldHost = "http://localhost:5001";
+      localStorage.setItem("writer.project.v1", JSON.stringify(p));
+    });
+    await page.reload();
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await page.getByRole("button", { name: "Run continue" }).click();
+    await expect(page.getByRole("heading", { name: "Preview — Continue" })).toBeVisible();
+    await expect(page.locator(".diff-box").filter({ hasText: "The fog folded over the harbor lights." })).toBeVisible();
+    await page.getByRole("button", { name: "Insert at cursor" }).click();
+    await expect(editor).toHaveValue(/The fog folded over the harbor lights\./);
+    await expect(page.getByRole("button", { name: "Revisions 1" })).toBeVisible();
+  });
 });
