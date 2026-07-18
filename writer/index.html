@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="parchment">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Writer</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ══════════════ Menu bar ══════════════ -->
+  <header id="menubar">
+    <div class="menubar-left">
+      <span id="appmark" title="Writer 0.1">W</span>
+      <nav id="menus">
+        <div class="menu" data-menu="file"><button class="menu-title">File</button>
+          <div class="menu-drop">
+            <button data-action="new-doc">New document</button>
+            <button data-action="connect-folder">Connect project folder…</button>
+            <button data-action="save-now">Save now <span class="kbd">Ctrl+S</span></button>
+            <button data-action="snapshot">Snapshot version</button>
+            <hr>
+            <button data-action="export-md">Export copy as Markdown</button>
+            <button data-action="export-txt">Export copy as Plain text</button>
+            <button data-action="export-html">Export copy as HTML</button>
+            <hr>
+            <button data-action="backup-json">Download project backup (JSON)</button>
+          </div>
+        </div>
+        <div class="menu" data-menu="edit"><button class="menu-title">Edit</button>
+          <div class="menu-drop">
+            <button data-action="undo">Undo <span class="kbd">Ctrl+Z</span></button>
+            <button data-action="redo">Redo <span class="kbd">Ctrl+Y</span></button>
+            <hr>
+            <button data-action="select-all">Select all <span class="kbd">Ctrl+A</span></button>
+          </div>
+        </div>
+        <div class="menu" data-menu="view"><button class="menu-title">View</button>
+          <div class="menu-drop">
+            <button data-action="toggle-project">Toggle project panel</button>
+            <button data-action="toggle-sidecar">Toggle AI sidecar</button>
+            <button data-action="toggle-preview">Toggle Markdown preview</button>
+            <button data-action="focus-mode">Focus mode (minimal skin)</button>
+            <hr>
+            <button data-action="theme-parchment">Theme: Parchment</button>
+            <button data-action="theme-ink">Theme: Ink (dark)</button>
+            <button data-action="theme-plain">Theme: Plain</button>
+          </div>
+        </div>
+        <div class="menu" data-menu="insert"><button class="menu-title">Insert</button>
+          <div class="menu-drop">
+            <button data-action="ins-h1">Heading 1</button>
+            <button data-action="ins-h2">Heading 2</button>
+            <button data-action="ins-h3">Heading 3</button>
+            <button data-action="ins-divider">Divider</button>
+            <button data-action="ins-link">Link</button>
+            <button data-action="ins-quote">Blockquote</button>
+            <button data-action="ins-code">Code block</button>
+          </div>
+        </div>
+        <div class="menu" data-menu="format"><button class="menu-title">Format</button>
+          <div class="menu-drop">
+            <button data-action="fmt-bold">Bold <span class="kbd">Ctrl+B</span></button>
+            <button data-action="fmt-italic">Italic <span class="kbd">Ctrl+I</span></button>
+            <button data-action="fmt-underline">Underline <span class="kbd">Ctrl+U</span></button>
+            <hr>
+            <button data-action="fmt-ul">Bulleted list</button>
+            <button data-action="fmt-ol">Numbered list</button>
+            <button data-action="fmt-quote">Quote</button>
+          </div>
+        </div>
+        <div class="menu" data-menu="tools"><button class="menu-title">Tools</button>
+          <div class="menu-drop">
+            <button data-action="providers">Providers &amp; models…</button>
+            <button data-action="privacy-settings">Privacy &amp; cloud consent…</button>
+            <button data-action="routing">Model routing suggestions</button>
+          </div>
+        </div>
+        <div class="menu" data-menu="help"><button class="menu-title">Help</button>
+          <div class="menu-drop">
+            <button data-action="about">About Writer</button>
+            <button data-action="shortcuts">Keyboard shortcuts</button>
+          </div>
+        </div>
+      </nav>
+    </div>
+    <div class="menubar-right">
+      <span id="project-name" title="Project">My Project</span>
+    </div>
+  </header>
+
+  <!-- ══════════════ Standard editing layer ══════════════ -->
+  <div id="toolbar-standard" class="toolbar">
+    <button class="tb" data-action="undo" title="Undo (Ctrl+Z)">↶</button>
+    <button class="tb" data-action="redo" title="Redo (Ctrl+Y)">↷</button>
+    <span class="tb-sep"></span>
+    <select id="style-select" class="tb-select" title="Paragraph style">
+      <option value="p">Paragraph</option>
+      <option value="h1">Heading 1</option>
+      <option value="h2">Heading 2</option>
+      <option value="h3">Heading 3</option>
+      <option value="quote">Quote</option>
+    </select>
+    <select id="font-select" class="tb-select" title="Editor font">
+      <option value="serif">Serif</option>
+      <option value="sans">Sans</option>
+      <option value="mono">Mono</option>
+    </select>
+    <select id="size-select" class="tb-select" title="Editor text size">
+      <option value="15">15</option>
+      <option value="16">16</option>
+      <option value="17" selected>17</option>
+      <option value="18">18</option>
+      <option value="20">20</option>
+      <option value="22">22</option>
+    </select>
+    <span class="tb-sep"></span>
+    <button class="tb" data-action="fmt-bold" title="Bold (Ctrl+B)"><b>B</b></button>
+    <button class="tb" data-action="fmt-italic" title="Italic (Ctrl+I)"><i>I</i></button>
+    <button class="tb" data-action="fmt-underline" title="Underline (Ctrl+U)"><u>U</u></button>
+    <label class="tb tb-color" title="Text color (inline HTML span)">
+      <span>A</span><input type="color" id="color-input" value="#8a3b2b">
+    </label>
+    <span class="tb-sep"></span>
+    <button class="tb" data-action="fmt-ul" title="Bulleted list">•≡</button>
+    <button class="tb" data-action="fmt-ol" title="Numbered list">1≡</button>
+    <button class="tb" data-action="fmt-quote" title="Blockquote">❝</button>
+    <button class="tb" data-action="ins-link" title="Insert link">🔗</button>
+    <span class="tb-spacer"></span>
+    <button class="tb tb-wide" data-action="toggle-preview" id="preview-btn" title="Toggle rendered Markdown preview">Preview</button>
+  </div>
+
+  <!-- ══════════════ AI command layer ══════════════ -->
+  <div id="toolbar-ai" class="toolbar">
+    <div class="menu" data-menu="rewrite">
+      <button class="tb tb-ai menu-title" title="Rewrite selected text">Rewrite ▾</button>
+      <div class="menu-drop">
+        <button data-rewrite="default">Improve (preserve meaning)</button>
+        <button data-rewrite="clearer">Clearer</button>
+        <button data-rewrite="stronger">Stronger</button>
+        <button data-rewrite="literary">More literary</button>
+        <button data-rewrite="simpler">Simpler</button>
+        <button data-rewrite="tone">Change tone…</button>
+        <button data-rewrite="dialogue">Dialogue pass</button>
+        <button data-rewrite="description">Description pass</button>
+        <button data-rewrite="custom">Custom instruction…</button>
+      </div>
+    </div>
+    <button class="tb tb-ai" data-ai="expand" title="Expand selected passage">Expand</button>
+    <button class="tb tb-ai" data-ai="continue" title="Generate after the cursor">Continue</button>
+    <button class="tb tb-ai" data-ai="shorten" title="Condense selected text">Shorten</button>
+    <span class="tb-sep"></span>
+    <button class="tb tb-ai" data-action="toggle-sidecar" title="Open the AI sidecar chat">Insert from AI</button>
+    <span class="tb-sep"></span>
+    <button class="tb tb-chip" id="model-chip" title="Choose provider and model">Model: <b id="model-chip-label">—</b> ▾</button>
+    <button class="tb tb-chip" id="context-chip" title="See and choose exactly what is sent">Context: <b id="context-chip-label">—</b> ▾</button>
+    <button class="tb tb-chip" id="privacy-chip" title="Declare request scope before generation">Privacy: <b id="privacy-chip-label">—</b> ▾</button>
+    <span class="tb-spacer"></span>
+    <button class="tb tb-chip" data-action="revisions" title="Browse snapshots and accepted transformations">Revisions <b id="rev-count">0</b></button>
+    <div class="menu" data-menu="export">
+      <button class="tb tb-chip menu-title" title="Export creates a copy; the source is never replaced">Export ▾</button>
+      <div class="menu-drop menu-drop-right">
+        <button data-action="export-md">Markdown copy (.md)</button>
+        <button data-action="export-txt">Plain text copy (.txt)</button>
+        <button data-action="export-html">HTML copy (.html)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ Main workspace ══════════════ -->
+  <main id="workspace">
+
+    <aside id="project-panel">
+      <div class="panel-head">
+        <span>Project</span>
+        <button class="icon-btn" data-action="toggle-project" title="Collapse panel">⟨</button>
+      </div>
+      <div id="project-sections"></div>
+      <div class="panel-foot">
+        <button class="ghost-btn" data-action="revisions">Versions <span id="rev-count-2">0</span></button>
+        <div id="folder-status" class="muted">In-browser storage</div>
+      </div>
+    </aside>
+
+    <section id="editor-pane">
+      <div id="editor-head">
+        <input id="doc-title" type="text" spellcheck="false" title="Document title (rename)">
+        <span id="doc-meta" class="muted"></span>
+      </div>
+      <div id="editor-body">
+        <textarea id="editor" spellcheck="true" placeholder="Write here. Select text and use Rewrite / Expand / Shorten, or place the cursor and press Continue."></textarea>
+        <div id="preview" class="prose" hidden></div>
+      </div>
+    </section>
+
+    <aside id="sidecar">
+      <div class="panel-head">
+        <button class="icon-btn" data-action="toggle-sidecar" title="Collapse panel">⟩</button>
+        <span>AI sidecar</span>
+      </div>
+      <div id="sidecar-status">
+        <button id="sidecar-model" class="chip" title="Change model"></button>
+        <button id="sidecar-context" class="chip" title="Context sent with each message"></button>
+        <span id="sidecar-scope" class="chip chip-static"></span>
+      </div>
+      <div id="chat-log" class="prose-chat"></div>
+      <form id="chat-form">
+        <textarea id="chat-input" rows="3" placeholder="Ask, brainstorm, or draft. Nothing enters the manuscript until you insert it."></textarea>
+        <div class="chat-actions">
+          <span class="muted" id="chat-hint">Responses are proposals — insert deliberately.</span>
+          <button type="submit" class="primary-btn">Send</button>
+        </div>
+      </form>
+    </aside>
+
+  </main>
+
+  <!-- ══════════════ Status bar ══════════════ -->
+  <footer id="statusbar">
+    <span id="status-words">0 words</span>
+    <span id="status-chars" class="muted">0 characters</span>
+    <span class="tb-spacer"></span>
+    <span id="status-save" class="muted">Saved</span>
+    <span id="status-scope" class="pill"></span>
+    <span id="status-model" class="pill"></span>
+  </footer>
+</div>
+
+<!-- ══════════════ Modal root ══════════════ -->
+<div id="modal-root" hidden>
+  <div id="modal-backdrop"></div>
+  <div id="modal-card" role="dialog" aria-modal="true"></div>
+</div>
+
+<div id="toast" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>
