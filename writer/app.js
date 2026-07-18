@@ -34,6 +34,8 @@ function toast(msg, ms = 2600) {
 /* ── constants ────────────────────────────────────────────────── */
 const STORE_KEY = "writer.project.v1";
 const SECRET_KEY = "writer.secret.anthropic"; // browser-local; never written into the project folder
+const RECOVERY_KEY = "writer.recovery.v1";
+const FIRST_RUN_KEY = "writer.firstRun.seen.v1";
 const FOLDERS = [
   { key: "manuscript", label: "Manuscript" },
   { key: "outline", label: "Outline" },
@@ -71,6 +73,7 @@ function defaultProject() {
     activeDocId: docs[0].id,
     chat: [],
     revisions: [],
+    privacyReceipts: [],
     settings: {
       theme: "parchment",
       font: "serif",
@@ -98,9 +101,22 @@ function loadProject() {
   return defaultProject();
 }
 
+function writeRecoverySnapshot(reason = "autosave") {
+  try {
+    flushEditor();
+    const snapshot = { savedAt: Date.now(), reason, project };
+    localStorage.setItem(RECOVERY_KEY, JSON.stringify(snapshot));
+    const el = $("#status-recovery");
+    if (el) el.textContent = "Recovery " + new Date(snapshot.savedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  } catch (e) {
+    console.warn("Writer: recovery snapshot failed", e);
+  }
+}
+
 const persist = debounce(() => {
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify(project));
+    writeRecoverySnapshot("autosave");
     $("#status-save").textContent = dirHandle ? "Saved · syncing folder…" : "Saved";
   } catch (e) {
     console.error(e);
@@ -609,6 +625,13 @@ async function runPendingOp() {
   op.scope = leavesDevice() ? (project.settings.privacy === "hybrid" ? "hybrid" : "cloud-enabled") : "local-only";
   op.contextNames = req.contextNames;
   op.ts = Date.now();
+  project.privacyReceipts ||= [];
+  project.privacyReceipts.push({
+    id: uid(), ts: op.ts, operation: op.kind, provider: op.provider, model: op.model,
+    scope: op.scope, destination: leavesDevice() ? currentProvider().name : "This device",
+    contextItems: [...op.contextNames], excerptWords: op.text.trim().split(/\s+/).filter(Boolean).length,
+  });
+  markDirty();
   showDiffPreview();
 }
 
@@ -704,6 +727,23 @@ function takeSnapshot() {
   });
   markDirty();
   toast("Snapshot recorded.");
+}
+
+function showPrivacyReceipts() {
+  const receipts = [...(project.privacyReceipts || [])].reverse();
+  const rows = receipts.length ? receipts.map((r) => `
+    <div class="receipt">
+      <b>${esc(r.operation)}</b> · ${esc(r.provider)} / ${esc(r.model)}
+      <div class="muted">${esc(fmtTime(r.ts))} · ${esc(r.scope)} · destination: ${esc(r.destination)} · excerpt: ${Number(r.excerptWords || 0)} words</div>
+      <div class="muted">Context sent: ${esc((r.contextItems || []).join(", ") || "none")}</div>
+    </div>`).join("") : `<p class="muted">No AI requests have been run in this project.</p>`;
+  const card = openModal(`
+    <h2 class="modal-title">Privacy receipts</h2>
+    <p class="modal-sub">An append-only local account of what each AI request sent, where it went, and which model handled it. Prompt text and secrets are not duplicated here.</p>
+    ${rows}
+    <div class="modal-actions"><button class="secondary-btn" id="receipt-close">Close</button></div>
+  `);
+  $("#receipt-close", card).addEventListener("click", closeModal);
 }
 
 function showRevisions() {
@@ -1308,6 +1348,7 @@ const ACTIONS = {
   "theme-plain": () => { project.settings.theme = "plain"; renderAll(); markDirty(); },
   "providers": showProviders,
   "privacy-settings": showPrivacyChooser,
+  "privacy-receipts": showPrivacyReceipts,
   "routing": showRouting,
   "revisions": showRevisions,
   "about": showAbout,
@@ -1407,9 +1448,18 @@ function bindEvents() {
 /* ── boot ─────────────────────────────────────────────────────── */
 function init() {
   project = loadProject();
+  project.privacyReceipts ||= [];
   anthropicKey = localStorage.getItem(SECRET_KEY) || null;
   checkedContext();
   bindEvents();
   renderAll();
+  const firstRun = $("#first-run");
+  if (!localStorage.getItem(FIRST_RUN_KEY)) firstRun.hidden = false;
+  $("#first-run-dismiss").addEventListener("click", () => {
+    localStorage.setItem(FIRST_RUN_KEY, "1");
+    firstRun.hidden = true;
+  });
+  window.addEventListener("beforeunload", () => writeRecoverySnapshot("before-unload"));
+  setInterval(() => writeRecoverySnapshot("periodic"), 30000);
 }
 init();

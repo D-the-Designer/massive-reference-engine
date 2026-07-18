@@ -85,6 +85,13 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
 .kbd { float: right; color: var(--ink-faint); font-size: 11px; margin-left: 18px; }
 
 #app { height: 100vh; display: flex; flex-direction: column; }
+.first-run {
+  display: flex; align-items: center; justify-content: center; gap: 18px;
+  padding: 9px 16px; background: var(--ai-soft); border-bottom: 1px solid var(--ai);
+  color: var(--ink); font-size: 12.5px;
+}
+.first-run[hidden] { display: none; }
+.receipt { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; margin: 8px 0; background: var(--bg-editor); }
 
 /* ── Menu bar ─────────────────────────────────────────────────── */
 #menubar {
@@ -387,4 +394,21 @@ table.routing th { background: var(--bg-panel); font-size: 11px; text-transform:
   #project-panel { position: absolute; z-index: 40; height: calc(100% - 1px); box-shadow: var(--shadow); }
   #sidecar { width: 280px; }
   #editor, #preview, #editor-head { padding-left: 20px; padding-right: 20px; }
+}
+
+@media (max-width: 640px) {
+  #menubar { overflow-x: auto; padding: 0 6px; }
+  #menus .menu-title { padding-inline: 7px; }
+  .menubar-right, #toolbar-standard .tb-sep, #toolbar-standard .tb-color { display: none; }
+  .toolbar { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: thin; }
+  #sidecar { position: absolute; z-index: 45; right: 0; height: 100%; width: min(92vw, 360px); box-shadow: var(--shadow); }
+  #editor, #preview { padding: 10px 16px 100px; }
+  #statusbar { gap: 8px; overflow-x: auto; }
+  .first-run { align-items: flex-start; }
+  .diff-cols { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 420px) {
+  #menus [data-menu="insert"], #menus [data-menu="format"] { display: none; }
+  #toolbar-standard { display: none; }
 }

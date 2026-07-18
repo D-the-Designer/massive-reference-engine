@@ -11,6 +11,21 @@ A reskinnable, **local-first writing application** with modular AI assistance �
 
 Open `writer/index.html` in any modern browser. No build step, no server, no network access required — the entire app is three files (`index.html`, `styles.css`, `app.js`) with zero dependencies.
 
+For development and automated validation:
+
+```bash
+cd writer
+npm install
+npx playwright install chromium
+npm test
+```
+
+The browser suite exercises desktop and phone-sized Chromium, including source
+safety, persistence and recovery, AI acceptance and rejection paths, cloud
+blocking, unavailable local providers, privacy receipts, revisions, themes,
+responsive behavior, and Markdown/TXT/HTML copy exports. GitHub Actions runs
+the same suite for Writer pull requests and changes to `main`.
+
 The project is persisted in browser storage automatically. For real portable files, use **File ▸ Connect project folder…** (Chromium-based browsers): Writer then reads/writes an ordinary folder you can inspect, back up, and open with any tool:
 
 ```
@@ -25,6 +40,10 @@ My Project/
 ```
 
 Secrets (cloud API keys) are **never** written into the project folder or `writer-project.json`.
+
+Writer keeps a rolling browser-local recovery snapshot on save, every 30
+seconds, and before the page unloads. This is a recovery aid, not a replacement
+for connecting a real project folder or downloading backups.
 
 ## The workspace
 
@@ -63,6 +82,11 @@ Models are replaceable adapters, chosen per task and never hidden:
 
 Tools ▸ Model routing suggestions shows suggested starting routes; they are defaults, not claims of superiority, and Writer never auto-switches models.
 
+Tools ▸ Privacy receipts shows a local, append-only summary of every completed
+AI request: operation, time, provider/model, destination, privacy scope, excerpt
+word count, and context-item names. API keys and full prompts are not copied
+into receipts.
+
 ## Export & Davenport compatibility
 
 Export produces a **named copy** — Markdown, plain text, or HTML (the initial rich format) — into `exports/` when a folder is connected, otherwise as a download. It never converts or replaces the source.
@@ -74,3 +98,10 @@ Writer is Davenport-**compatible**, not Davenport-branded: authored files stay p
 Included and working: one-project editor (Markdown/TXT source), standard formatting and document structure, project panel (documents/outline/lore/sources), local model connection (Ollama) plus one cloud adapter behind explicit consent, chat + generate/insert + rewrite/expand/continue/shorten, diff preview and revision snapshots, Markdown/TXT export plus HTML as the initial rich export, theme tokens and collapsible panels.
 
 Deliberately not included yet (per spec): DOCX/PDF import-export, Fountain, Post delivery handoff, collaborative editing, automatic model routing, bulk Davenport ingestion, and an embedded database as primary storage.
+
+## Release and security
+
+Writer is currently version 0.1.0. Changes are documented in
+[`CHANGELOG.md`](../CHANGELOG.md); credential-handling guidance is in
+[`SECURITY.md`](../SECURITY.md). Browser storage is not an OS keychain: prefer
+session-only cloud keys, especially on shared machines.

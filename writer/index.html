@@ -4,10 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Writer</title>
+<meta name="description" content="Writer — a local-first Markdown writing application with explicit, reviewable AI assistance.">
+<meta name="theme-color" content="#28251f">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%2328251f'/><text x='32' y='44' text-anchor='middle' font-family='serif' font-size='42' fill='%23fff'>W</text></svg>">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <div id="app">
+  <section id="first-run" class="first-run" hidden aria-label="Welcome to Writer">
+    <div><strong>Writer keeps your source local.</strong> Preview mode uses fixed placeholder text—not real AI. Connect Ollama or explicitly enable a cloud provider when you are ready.</div>
+    <button id="first-run-dismiss" class="secondary-btn">Got it</button>
+  </section>
 
   <!-- ══════════════ Menu bar ══════════════ -->
   <header id="menubar">
@@ -74,6 +81,7 @@
           <div class="menu-drop">
             <button data-action="providers">Providers &amp; models…</button>
             <button data-action="privacy-settings">Privacy &amp; cloud consent…</button>
+            <button data-action="privacy-receipts">Privacy receipts…</button>
             <button data-action="routing">Model routing suggestions</button>
           </div>
         </div>
@@ -222,6 +230,7 @@
     <span id="status-chars" class="muted">0 characters</span>
     <span class="tb-spacer"></span>
     <span id="status-save" class="muted">Saved</span>
+    <span id="status-recovery" class="muted" title="Automatic browser recovery snapshot">Recovery ready</span>
     <span id="status-scope" class="pill"></span>
     <span id="status-model" class="pill"></span>
   </footer>
