@@ -33,7 +33,9 @@ function toast(msg, ms = 2600) {
 
 /* ── constants ────────────────────────────────────────────────── */
 const STORE_KEY = "writer.project.v1";
-const SECRET_KEY = "writer.secret.anthropic"; // browser-local; never written into the project folder
+const GEMINI_SECRET_KEY = "writer.secret.gemini";
+const GROQ_SECRET_KEY = "writer.secret.groq";
+const OPENROUTER_SECRET_KEY = "writer.secret.openrouter";
 const RECOVERY_KEY = "writer.recovery.v1";
 const FIRST_RUN_KEY = "writer.firstRun.seen.v1";
 const FOLDERS = [
@@ -51,7 +53,9 @@ const PRIVACY = {
 /* ── state ────────────────────────────────────────────────────── */
 let project = null;          // the whole persisted project object
 let dirHandle = null;        // File System Access directory handle (optional)
-let anthropicKey = null;     // in-memory unless user opts into browser storage
+let geminiKey = null;
+let groqKey = null;
+let openRouterKey = null;
 let pendingOp = null;        // the AI operation currently in preflight/diff
 let ollamaModels = null;     // detected model list, session only
 let koboldModels = null;     // model currently loaded by KoboldAI/KoboldCpp
@@ -90,6 +94,9 @@ function defaultProject() {
       koboldTemperature: 0.8,
       koboldRepPenalty: 1.1,
       koboldMaxTokens: 512,
+      geminiModel: "gemini-2.5-flash",
+      groqModel: "qwen/qwen3.6-27b",
+      openRouterModel: "openrouter/free",
       panels: { project: true, sidecar: true },
       contextChecked: null, // filled on first use
     },
@@ -292,6 +299,16 @@ const PreviewProvider = {
         return passage.trim() + "\n\n[Preview provider placeholder — connect Ollama or a cloud model in Tools ▸ Providers to generate real prose here.]";
       case "continue":
         return "[Preview provider placeholder — connect Ollama or a cloud model in Tools ▸ Providers, then Continue will draft real prose from the text before the cursor.]";
+      case "guided":
+        return "[Preview placeholder — Guided Write will follow your direction when a model is connected.]";
+      case "describe":
+        return passage.trim() + "\n\n[Preview placeholder — Describe will add selective sensory detail when a model is connected.]";
+      case "brainstorm":
+        return "1. Reverse the apparent goal.\n2. Make the ally's solution create a harder choice.\n3. Let an established setting detail become the obstacle.\n\n[Preview placeholder — connect a model for story-specific ideas.]";
+      case "firstdraft":
+        return "[Preview placeholder — First Draft will generate a complete scene from the outline and Story Bible when a model is connected.]";
+      case "feedback":
+        return "[Preview placeholder — Feedback will provide an editorial critique when a model is connected.]";
       default:
         return "This is the built-in Preview provider — a canned responder with no model behind it, here so you can try the workflow. Everything I \"write\" is a fixed placeholder. Connect a local model (Ollama) or a cloud model in Tools ▸ Providers & models for real assistance. Your message and selected context never left this device.";
     }
@@ -385,42 +402,57 @@ const KoboldProvider = {
   },
 };
 
-const AnthropicProvider = {
-  id: "anthropic",
-  name: "Anthropic (cloud)",
-  kind: "cloud",
-  note: "Sends the declared context to api.anthropic.com. Requires an API key and explicit consent.",
+const GeminiProvider = {
+  id: "gemini", name: "Gemini API (free tier)", kind: "cloud",
+  note: "Google offers limited free-tier usage. Requests leave this device; free-tier content may be used to improve Google products.",
   models: () => [
-    { id: "claude-sonnet-5", label: "Claude Sonnet 5", provider: "anthropic" },
-    { id: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5", provider: "anthropic" },
+    { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash (free tier)", provider: "gemini" },
+    { id: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash-Lite (free tier)", provider: "gemini" },
+    { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro (free tier limits)", provider: "gemini" },
   ],
   async call({ system, messages }) {
-    if (!anthropicKey) throw new Error("No Anthropic API key set. Tools ▸ Providers & models.");
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": anthropicKey,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true",
-      },
-      body: JSON.stringify({
-        model: project.settings.modelId,
-        max_tokens: 2048,
-        system,
-        messages: messages.map((m) => ({ role: m.role, content: m.content })),
-      }),
+    if (!geminiKey) throw new Error("No Gemini API key set. Tools ▸ Providers & models.");
+    const model = encodeURIComponent(project.settings.modelId || project.settings.geminiModel);
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(geminiKey)}`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents: messages.map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] })), generationConfig: { temperature: 0.8, maxOutputTokens: 2048 } }),
     });
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      throw new Error("Anthropic error " + res.status + ": " + body.slice(0, 200));
-    }
+    if (!res.ok) throw new Error("Gemini error " + res.status + ": " + (await res.text()).slice(0, 180));
     const data = await res.json();
-    return (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("").trim();
+    return (((data.candidates || [])[0] || {}).content?.parts || []).map((p) => p.text || "").join("").trim();
   },
 };
 
-const PROVIDERS = { preview: PreviewProvider, ollama: OllamaProvider, kobold: KoboldProvider, anthropic: AnthropicProvider };
+function openAICompatibleProvider({ id, name, note, models, key, host }) {
+  return { id, name, kind: "cloud", note, models: () => models,
+    async call({ system, messages }) {
+      const apiKey = key();
+      if (!apiKey) throw new Error(`No ${name} API key set. Tools ▸ Providers & models.`);
+      const res = await fetch(host, { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + apiKey }, body: JSON.stringify({ model: project.settings.modelId, messages: [{ role: "system", content: system }, ...messages], temperature: 0.8, max_tokens: 2048 }) });
+      if (!res.ok) throw new Error(name + " error " + res.status + ": " + (await res.text()).slice(0, 180));
+      const data = await res.json();
+      return (((data.choices || [])[0] || {}).message?.content || "").trim();
+    }
+  };
+}
+
+const GroqProvider = openAICompatibleProvider({
+  id: "groq", name: "Groq (free plan)", note: "Fast hosted inference with published free-plan rate limits. Requests leave this device.",
+  key: () => groqKey, host: "https://api.groq.com/openai/v1/chat/completions",
+  models: [
+    { id: "qwen/qwen3.6-27b", label: "Qwen 3.6 27B (free plan)", provider: "groq" },
+    { id: "llama-3.3-70b-versatile", label: "Llama 3.3 70B (free plan)", provider: "groq" },
+    { id: "openai/gpt-oss-120b", label: "GPT-OSS 120B (free plan, open-weight)", provider: "groq" },
+  ],
+});
+
+const OpenRouterProvider = openAICompatibleProvider({
+  id: "openrouter", name: "OpenRouter (free models)", note: "Routes to currently available free models; availability and low rate limits vary. Requests leave this device.",
+  key: () => openRouterKey, host: "https://openrouter.ai/api/v1/chat/completions",
+  models: [{ id: "openrouter/free", label: "Free Models Router (model varies)", provider: "openrouter" }],
+});
+
+const PROVIDERS = { preview: PreviewProvider, ollama: OllamaProvider, kobold: KoboldProvider, gemini: GeminiProvider, groq: GroqProvider, openrouter: OpenRouterProvider };
 const currentProvider = () => PROVIDERS[project.settings.providerId] || PreviewProvider;
 const currentModelLabel = () => {
   const p = currentProvider();
@@ -521,6 +553,11 @@ const OP_DEFS = {
   expand: { label: "Expand", needsSelection: true },
   shorten: { label: "Shorten", needsSelection: true },
   continue: { label: "Continue", needsSelection: false },
+  guided: { label: "Guided Write", needsSelection: false },
+  describe: { label: "Describe", needsSelection: true },
+  brainstorm: { label: "Brainstorm", needsSelection: false },
+  firstdraft: { label: "First Draft", needsSelection: false },
+  feedback: { label: "Feedback", needsSelection: false },
 };
 
 const REWRITE_SUBTYPES = {
@@ -563,6 +600,28 @@ function beginOperation(kind, subtype) {
     text = before.slice(-2500);
     selEnd = selStart;
     instruction = "Continue the text naturally from where the excerpt ends. Return only the new prose, with no preamble and no repetition of the excerpt.";
+  } else if (kind === "guided") {
+    const direction = window.prompt("What should happen next?", "");
+    if (direction === null) return;
+    text = ta.value.slice(Math.max(0, selStart - 2500), selStart);
+    selEnd = selStart;
+    instruction = `Write the next passage following this direction: ${direction.trim() || "advance the scene naturally"}. Preserve POV, tense, voice, and Story Bible facts. Return prose only.`;
+  } else if (kind === "describe") {
+    instruction = "Enrich this passage with specific sensory detail across sight, sound, smell, touch, and taste where relevant. Avoid purple prose and preserve POV, tense, facts, and pacing. Return the full revised passage.";
+  } else if (kind === "brainstorm") {
+    const topic = window.prompt("What should Writer brainstorm?", "Plot turns, complications, or character choices");
+    if (topic === null) return;
+    text = ta.value.slice(Math.max(0, selStart - 2000), selStart);
+    selEnd = selStart;
+    instruction = `Brainstorm 10 distinct, story-specific ideas for: ${topic.trim()}. Use the Story Bible and current draft. Keep each idea concise and avoid generic suggestions.`;
+  } else if (kind === "firstdraft") {
+    text = ta.value.slice(Math.max(0, selStart - 2500), selStart);
+    selEnd = selStart;
+    instruction = "Draft the next complete scene from the outline, current manuscript, and Story Bible. Target 800–1,000 words. Preserve POV, tense, continuity, character motives, and established style. Return prose only.";
+  } else if (kind === "feedback") {
+    text = ta.value.slice(0, 8000);
+    selStart = ta.selectionStart; selEnd = selStart;
+    instruction = "Give concise editorial feedback on this draft: strengths, continuity issues, unclear motivations, pacing, prose habits, and three highest-value revisions. Do not rewrite the draft.";
   }
   pendingOp = { kind, subtype: subtype || null, instruction, text, selStart, selEnd, docId: activeDoc().id, docName: activeDoc().name };
   showPreflight();
@@ -696,14 +755,14 @@ async function runPendingOp() {
 
 function showDiffPreview() {
   const op = pendingOp;
-  const isContinue = op.kind === "continue";
-  const original = isContinue ? (op.text.slice(-800) || "(empty)") : op.text;
-  const { left, right } = isContinue ? { left: esc(original), right: `<span class="d-ins">${esc(op.result)}</span>` } : diffHtml(original, op.result);
+  const isInsert = ["continue", "guided", "brainstorm", "firstdraft", "feedback"].includes(op.kind);
+  const original = isInsert ? (op.text.slice(-800) || "(empty)") : op.text;
+  const { left, right } = isInsert ? { left: esc(original), right: `<span class="d-ins">${esc(op.result)}</span>` } : diffHtml(original, op.result);
   const card = openModal(`
     <h2 class="modal-title">Preview — ${OP_DEFS[op.kind].label}</h2>
     <p class="modal-sub">Nothing has changed yet. Choose what happens to your text.</p>
     <div class="diff-cols">
-      <div><div class="diff-col-head">${isContinue ? "Text before cursor" : "Original"}</div><div class="diff-box">${left}</div></div>
+      <div><div class="diff-col-head">${isInsert ? "Reference text" : "Original"}</div><div class="diff-box">${left}</div></div>
       <div><div class="diff-col-head">Proposed</div><div class="diff-box">${right}</div></div>
     </div>
     <div class="diff-provenance">
@@ -711,17 +770,17 @@ function showDiffPreview() {
       Requested: “${esc(op.instruction)}” — the result reflects what was requested, not a guarantee of preserved voice.
     </div>
     <div class="modal-actions">
-      <button class="secondary-btn spread" id="dp-keep">${isContinue ? "Discard" : "Keep original"}</button>
+      <button class="secondary-btn spread" id="dp-keep">${isInsert ? "Discard" : "Keep original"}</button>
       <button class="secondary-btn" id="dp-retry">Try again</button>
-      ${isContinue ? "" : `<button class="secondary-btn" id="dp-below">Insert below</button>`}
-      <button class="primary-btn" id="dp-replace">${isContinue ? "Insert at cursor" : "Replace"}</button>
+      ${isInsert ? "" : `<button class="secondary-btn" id="dp-below">Insert below</button>`}
+      <button class="primary-btn" id="dp-replace">${isInsert ? "Insert at cursor" : "Replace"}</button>
     </div>
   `, { wide: true });
   $("#dp-keep", card).addEventListener("click", () => { pendingOp = null; closeModal(); toast("Original kept. No revision recorded."); });
   $("#dp-retry", card).addEventListener("click", () => showPreflight());
   const below = $("#dp-below", card);
   if (below) below.addEventListener("click", () => acceptOperation("insert-below"));
-  $("#dp-replace", card).addEventListener("click", () => acceptOperation(isContinue ? "insert-at-cursor" : "replace"));
+  $("#dp-replace", card).addEventListener("click", () => acceptOperation(isInsert ? "insert-at-cursor" : "replace"));
 }
 
 function acceptOperation(choice) {
@@ -1216,7 +1275,7 @@ function showPrivacyChooser() {
 }
 
 function showProviders() {
-  const remembered = !!localStorage.getItem(SECRET_KEY);
+  const remembered = !!localStorage.getItem(GEMINI_SECRET_KEY) || !!localStorage.getItem(GROQ_SECRET_KEY) || !!localStorage.getItem(OPENROUTER_SECRET_KEY);
   const card = openModal(`
     <h2 class="modal-title">Providers &amp; models</h2>
     <p class="modal-sub">Local and cloud models are replaceable providers, selected per task. Secrets are never written into the project folder.</p>
@@ -1241,11 +1300,13 @@ function showProviders() {
       <button class="secondary-btn" id="pr-kobold-detect">Detect loaded writing model</button>
       <span class="muted" id="pr-kobold-out">${koboldModels ? "Found: " + esc(koboldModels.join(", ")) : ""}</span>
     </div>
-    <div class="model-group"><div class="model-group-head">Anthropic (cloud)</div>
-      <div class="field"><label class="field-label" for="pr-key">API key</label>
-        <input type="password" id="pr-key" placeholder="${anthropicKey ? "•••• key set for this session" : "sk-ant-…"}"></div>
+    <div class="model-group"><div class="model-group-head">Free-tier cloud APIs</div>
+      <div class="scope-banner cloud"><b>Leaves this device.</b> Free plans have rate limits and provider-specific data policies. Gemini free-tier content may be used to improve Google products. Use Local-only with Ollama or Kobold for private drafts.</div>
+      <div class="field"><label class="field-label" for="pr-gemini-key">Gemini API key</label><input type="password" id="pr-gemini-key" placeholder="${geminiKey ? "•••• key set for this session" : "Google AI Studio key"}"></div>
+      <div class="field"><label class="field-label" for="pr-groq-key">Groq API key</label><input type="password" id="pr-groq-key" placeholder="${groqKey ? "•••• key set for this session" : "Groq free-plan key"}"></div>
+      <div class="field"><label class="field-label" for="pr-openrouter-key">OpenRouter API key</label><input type="password" id="pr-openrouter-key" placeholder="${openRouterKey ? "•••• key set for this session" : "OpenRouter free-model key"}"></div>
       <label class="check-row"><input type="checkbox" id="pr-remember" ${remembered ? "checked" : ""}>
-        <span>Remember key in this browser's local storage
+        <span>Remember cloud keys in this browser's local storage
         <span class="muted">Off = kept in memory for this session only. A browser cannot use the OS keychain; prefer session-only on shared machines.</span></span></label>
     </div>
     <div class="modal-actions">
@@ -1284,10 +1345,16 @@ function showProviders() {
     project.settings.koboldTemperature = Number($("#pr-kobold-temp", card).value) || 0.8;
     project.settings.koboldRepPenalty = Number($("#pr-kobold-rep", card).value) || 1.1;
     project.settings.koboldMaxTokens = Number($("#pr-kobold-max", card).value) || 512;
-    const key = $("#pr-key", card).value.trim();
-    if (key) anthropicKey = key;
-    if ($("#pr-remember", card).checked && anthropicKey) localStorage.setItem(SECRET_KEY, anthropicKey);
-    if (!$("#pr-remember", card).checked) localStorage.removeItem(SECRET_KEY);
+    const gKey = $("#pr-gemini-key", card).value.trim(); if (gKey) geminiKey = gKey;
+    const qKey = $("#pr-groq-key", card).value.trim(); if (qKey) groqKey = qKey;
+    const rKey = $("#pr-openrouter-key", card).value.trim(); if (rKey) openRouterKey = rKey;
+    if ($("#pr-remember", card).checked) {
+      if (geminiKey) localStorage.setItem(GEMINI_SECRET_KEY, geminiKey);
+      if (groqKey) localStorage.setItem(GROQ_SECRET_KEY, groqKey);
+      if (openRouterKey) localStorage.setItem(OPENROUTER_SECRET_KEY, openRouterKey);
+    } else {
+      localStorage.removeItem(GEMINI_SECRET_KEY); localStorage.removeItem(GROQ_SECRET_KEY); localStorage.removeItem(OPENROUTER_SECRET_KEY);
+    }
     markDirty();
     renderStatus();
     closeModal();
@@ -1538,7 +1605,9 @@ function bindEvents() {
 function init() {
   project = loadProject();
   project.privacyReceipts ||= [];
-  anthropicKey = localStorage.getItem(SECRET_KEY) || null;
+  geminiKey = localStorage.getItem(GEMINI_SECRET_KEY) || null;
+  groqKey = localStorage.getItem(GROQ_SECRET_KEY) || null;
+  openRouterKey = localStorage.getItem(OPENROUTER_SECRET_KEY) || null;
   checkedContext();
   bindEvents();
   renderAll();

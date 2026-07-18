@@ -119,7 +119,7 @@ test.describe("Writer release contract", () => {
 
   test("cloud model is blocked under local-only scope", async ({ page }) => {
     await page.getByRole("button", { name: /Model:/ }).first().click();
-    await page.getByRole("button", { name: /Claude Sonnet 5/ }).click();
+    await page.getByRole("button", { name: /Gemini 2.5 Flash \(free tier\)/ }).click();
     await page.getByRole("button", { name: "Continue", exact: true }).click();
     await page.getByRole("button", { name: "Run continue" }).click();
     await expect(page.locator("#toast")).toContainText("Local-only");
@@ -211,5 +211,23 @@ test.describe("Writer release contract", () => {
     await page.getByRole("button", { name: "Insert at cursor" }).click();
     await expect(editor).toHaveValue(/The fog folded over the harbor lights\./);
     await expect(page.getByRole("button", { name: "Revisions 1" })).toBeVisible();
+  });
+
+  test("free cloud providers are clearly labeled", async ({ page }) => {
+    await page.getByRole("button", { name: /Model:/ }).first().click();
+    await expect(page.getByRole("button", { name: /Gemini 2.5 Flash \(free tier\)/ })).toContainText("leaves device");
+    await expect(page.getByRole("button", { name: /Qwen 3.6 27B \(free plan\)/ })).toContainText("leaves device");
+    await expect(page.getByRole("button", { name: /Free Models Router/ })).toContainText("leaves device");
+    await expect(page.getByText("Claude Sonnet 5", { exact: true })).toHaveCount(0);
+  });
+
+  test("fiction writing tools use the same preflight safety contract", async ({ page }) => {
+    const editor = page.locator("#editor");
+    await editor.selectText();
+    await page.getByRole("button", { name: "Describe", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Describe — review before submission" })).toBeVisible();
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await page.getByRole("button", { name: "Feedback", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Feedback — review before submission" })).toBeVisible();
   });
 });

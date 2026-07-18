@@ -57,6 +57,8 @@ for connecting a real project folder or downloading backups.
 
 **Rewrite ▾ (with subtypes) · Expand · Continue · Shorten** — every command follows the same contract:
 
+Writer also includes fiction-focused **Guided Write**, **Describe**, **Brainstorm**, **First Draft**, and **Feedback** commands. Outline, Lore & style, Sources, and manuscript context together act as the project Story Bible; every included item remains visible in pre-flight.
+
 1. A **pre-flight dialog** shows the operation, editable instruction, model, the exact context items included (with word counts), and the privacy scope — before anything is sent.
 2. The result opens in a **diff preview**. Nothing has changed yet.
 3. You choose **Keep original**, **Replace**, **Insert below**, or **Try again**.
@@ -73,7 +75,9 @@ Models are replaceable adapters, chosen per task and never hidden:
 | **Preview (no AI)** | stays local | Built-in canned transforms so the whole workflow is testable with no model connected. Deterministic, clearly labeled, not intelligent. |
 | **Ollama** | stays local | Point at a local Ollama server (Tools ▸ Providers). “Detect installed models” lists what's pulled. If the browser can't reach it from a `file://` page, start Ollama with `OLLAMA_ORIGINS='*' ollama serve`. |
 | **KoboldAI / KoboldCpp** | stays local | Reuses the writing model loaded by a local Kobold server, normally at `http://localhost:5001`. Writer can detect its model and exposes temperature, repetition penalty, and output length. |
-| **Anthropic** | leaves device | One cloud adapter behind explicit consent. Requires your API key (session-only by default; opt-in browser storage — a web page cannot use the OS keychain, so prefer session-only on shared machines). |
+| **Gemini API** | leaves device | Limited free tier through Google AI Studio. Free-tier content may be used to improve Google products. |
+| **Groq** | leaves device | Published free-plan limits with fast hosted open-model inference, including GPT-OSS. |
+| **OpenRouter** | leaves device | `openrouter/free` routes among currently available free models; model choice and availability can vary. |
 
 **Privacy scope** is declared before generation and recorded per revision:
 
