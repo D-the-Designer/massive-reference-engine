@@ -305,6 +305,16 @@ test.describe("Writer release contract", () => {
     await expect(page.getByText("Claude Sonnet 5", { exact: true })).toHaveCount(0);
   });
 
+  test("fiction model catalog labels adult models and classic Kobold lineage", async ({ page }) => {
+    await page.getByRole("button", { name: "Tools", exact: true }).click();
+    await page.getByRole("button", { name: "Fiction model catalog…" }).click();
+    await expect(page.getByRole("heading", { name: "Kobold fiction model catalog" })).toBeVisible();
+    await expect(page.getByText("Erebus v3 7B · Q4_K_M")).toBeVisible();
+    await expect(page.locator(".model-badge.adult")).toHaveText("Adult fiction");
+    await expect(page.getByText(/Nerys.*Janeway.*Skein.*Erebus/)).toBeVisible();
+    await expect(page.getByText(/OPT releases restrict commercial use/)).toBeVisible();
+  });
+
   test("fiction writing tools use the same preflight safety contract", async ({ page }) => {
     const editor = page.locator("#editor");
     await editor.selectText();

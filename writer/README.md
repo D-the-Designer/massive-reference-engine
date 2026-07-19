@@ -79,6 +79,8 @@ Models are replaceable adapters, chosen per task and never hidden:
 | **Groq** | leaves device | Published free-plan limits with fast hosted open-model inference, including GPT-OSS. |
 | **OpenRouter** | leaves device | `openrouter/free` routes among currently available free models; model choice and availability can vary. |
 
+**Tools ▸ Fiction model catalog…** includes curated local-fiction choices with adult-content and license labels. Erebus v3 7B Q4 is the recommended practical adult-fiction starting point for a 16 GB Mac; Tiefighter 13B is a larger optional hybrid. Classic Colab families such as Nerys, Janeway, Skein, Shinen, Lit, and Nerybus are documented as lineage rather than presented as automatic downloads.
+
 **Privacy scope** is declared before generation and recorded per revision:
 
 - **Local-only** (default) — cloud models are blocked outright.

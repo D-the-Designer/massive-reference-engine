@@ -49,6 +49,42 @@ const PRIVACY = {
   hybrid: { label: "Hybrid", desc: "Cloud models allowed, but each cloud request needs an explicit per-request approval." },
   cloud: { label: "Cloud-enabled", desc: "Cloud models allowed after a one-time consent." },
 };
+const FICTION_MODELS = [
+  {
+    name: "Erebus v3 7B · Q4_K_M",
+    category: "Adult fiction",
+    modelId: "hf.co/KoboldAI/Mistral-7B-Erebus-v3-GGUF:Q4_K_M",
+    url: "https://huggingface.co/KoboldAI/Mistral-7B-Erebus-v3-GGUF",
+    license: "Apache 2.0",
+    size: "about 4.4 GB",
+    note: "Recommended local starting point for explicit fiction. Runs comfortably in the same hardware class as Qwen 8B.",
+  },
+  {
+    name: "Tiefighter 13B · Q4_K_M",
+    category: "Hybrid fiction / roleplay",
+    modelId: "hf.co/KoboldAI/LLaMA2-13B-Tiefighter-GGUF:Q4_K_M",
+    url: "https://huggingface.co/KoboldAI/LLaMA2-13B-Tiefighter-GGUF",
+    license: "Llama 2",
+    size: "about 7.9 GB",
+    note: "Stronger, slower model for novels, roleplay, chat, and adventures; includes adult-capable upstream material.",
+  },
+  {
+    name: "BookAdventures 8B",
+    category: "Novel / adventure",
+    url: "https://huggingface.co/KoboldAI/Llama-3.1-8B-BookAdventures-GGUF",
+    license: "Check model card",
+    size: "varies by quant",
+    note: "Newer KoboldAI book and adventure model for general story writing.",
+  },
+  {
+    name: "Infinity3M Kobo 8B",
+    category: "Long-form fiction",
+    url: "https://huggingface.co/KoboldAI/LLaMA-3.1-8B-Infinity3M-Kobo",
+    license: "Check model card",
+    size: "varies by quant",
+    note: "Newer KoboldAI fiction option; inspect available quantizations before installing.",
+  },
+];
 
 /* ── state ────────────────────────────────────────────────────── */
 let project = null;          // the whole persisted project object
@@ -1653,6 +1689,47 @@ function showRouting() {
   $("#rt-close", card).addEventListener("click", closeModal);
 }
 
+function showFictionModels() {
+  const installed = new Map((ollamaModels || []).map((name) => [name.toLowerCase(), name]));
+  const rows = FICTION_MODELS.map((model) => {
+    const installedId = model.modelId && installed.get(model.modelId.toLowerCase());
+    return `<div class="model-group">
+      <div class="model-group-head">${esc(model.name)} <span class="model-badge ${/adult/i.test(model.category) ? "adult" : "local"}">${esc(model.category)}</span></div>
+      <p class="muted">${esc(model.note)}</p>
+      <p class="muted">Download: ${esc(model.size)} · License: ${esc(model.license)}</p>
+      <div class="modal-actions" style="justify-content:flex-start">
+        ${installedId ? `<button class="primary-btn" data-fiction-use="${esc(installedId)}">Use in Writer</button>` : ""}
+        <a class="secondary-btn" href="${esc(model.url)}" target="_blank" rel="noopener">Model page</a>
+      </div>
+    </div>`;
+  }).join("");
+  const card = openModal(`
+    <h2 class="modal-title">Kobold fiction model catalog</h2>
+    <p class="modal-sub">Curated local models for fiction. Adult models are clearly labeled. Writer never downloads a model from this screen without your action.</p>
+    <div class="scope-banner local"><b>Classic Colab lineage:</b> Nerys (novel/adventure), Janeway and Picard (novels), Skein and Adventure (text adventures), Erebus/Shinen/Lit (adult fiction), and Nerybus (Nerys–Erebus blend). Some older OPT releases restrict commercial use, so they are references rather than default recommendations.</div>
+    ${rows}
+    <div class="modal-actions">
+      <button class="secondary-btn spread" id="fm-detect">Refresh installed Ollama models</button>
+      <button class="secondary-btn" id="fm-close">Close</button>
+    </div>`);
+  $$("[data-fiction-use]", card).forEach((button) => button.addEventListener("click", () => {
+    setModel("ollama", button.dataset.fictionUse);
+    closeModal();
+    toast("Adult-fiction model selected: " + currentModelLabel());
+  }));
+  $("#fm-detect", card).addEventListener("click", async () => {
+    try {
+      await OllamaProvider.detect();
+      closeModal();
+      showFictionModels();
+      toast("Installed models refreshed.");
+    } catch (error) {
+      toast("Ollama is not reachable: " + error.message, 4200);
+    }
+  });
+  $("#fm-close", card).addEventListener("click", closeModal);
+}
+
 function showAbout() {
   const card = openModal(`
     <h2 class="modal-title">Writer 0.1</h2>
@@ -1780,6 +1857,7 @@ const ACTIONS = {
   "theme-ink": () => { project.settings.theme = "ink"; renderAll(); markDirty(); },
   "theme-plain": () => { project.settings.theme = "plain"; renderAll(); markDirty(); },
   "providers": showProviders,
+  "fiction-models": showFictionModels,
   "privacy-settings": showPrivacyChooser,
   "privacy-receipts": showPrivacyReceipts,
   "routing": showRouting,

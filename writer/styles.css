@@ -378,6 +378,7 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
 .model-badge { margin-left: auto; font-size: 10.5px; border-radius: 999px; padding: 2px 8px; border: 1px solid; white-space: nowrap; }
 .model-badge.local { color: var(--ok); border-color: var(--ok); }
 .model-badge.cloud { color: var(--danger); border-color: var(--danger); }
+.model-badge.adult { color: var(--danger); border-color: var(--danger); }
 
 table.routing { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 table.routing th, table.routing td { border: 1px solid var(--line); padding: 7px 9px; text-align: left; vertical-align: top; }
