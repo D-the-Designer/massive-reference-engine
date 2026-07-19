@@ -152,6 +152,20 @@ test.describe("Writer release contract", () => {
     await page.getByRole("button", { name: "Cancel", exact: true }).click();
   });
 
+  test("Company Man voice preserves the house style while controlling repeated habits", async ({ page }) => {
+    const editor = page.locator("#editor");
+    const before = await editor.inputValue();
+    await editor.selectText();
+    await page.getByRole("button", { name: "Rewrite ▾" }).click();
+    await page.getByRole("button", { name: "Company Man — controlled house voice", exact: true }).click();
+    await expect(page.locator("#pf-instruction")).toContainText("bruised working-class perspective");
+    await expect(page.locator("#pf-instruction")).toContainText("use fragments deliberately rather than continuously");
+    await expect(page.locator("#pf-instruction")).toContainText("do not restate an emotion");
+    await expect(page.locator("#pf-instruction")).toContainText("end the beat one paragraph sooner");
+    await expect(editor).toHaveValue(before);
+    await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  });
+
   test("plot improvisation proposes lore-aware moves without changing the manuscript", async ({ page }) => {
     const editor = page.locator("#editor");
     const before = await editor.inputValue();

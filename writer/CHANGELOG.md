@@ -4,6 +4,8 @@
 
 - Replaced the tall floating Rewrite dropdown with an expanding toolbar tray
   that pushes the manuscript down instead of covering the text.
+- Added a controlled Company Man house voice derived from Chapters 1–5, with
+  explicit repetition limits and a trust-the-image editorial rule.
 - Existing DOCX, TXT, RTF, and Markdown files now open under an explicit
   `— Writer Copy` name, with numbered collision handling and visible
   source-protection status.
