@@ -127,6 +127,19 @@ test.describe("Writer release contract", () => {
     await page.getByRole("button", { name: "Cancel", exact: true }).click();
   });
 
+  test("character voice rewrite uses selected project lore as authority", async ({ page }) => {
+    const editor = page.locator("#editor");
+    const before = await editor.inputValue();
+    await editor.selectText();
+    await page.getByRole("button", { name: "Rewrite ▾" }).click();
+    await page.getByRole("button", { name: "Val in Wanderer — dry engineer", exact: true }).click();
+    await expect(page.locator("#pf-instruction")).toContainText("dry engineer speech");
+    await expect(page.locator("#pf-instruction")).toContainText("production Bible as authority");
+    await expect(page.locator("#pf-instruction")).toContainText("do not invent catchphrases");
+    await expect(editor).toHaveValue(before);
+    await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  });
+
   test("Preview renders escaped Markdown safely", async ({ page }) => {
     await page.locator("#editor").fill("# Heading\n\n<script>window.pwned=true</script>\n\n**bold**");
     await page.getByRole("button", { name: "View", exact: true }).click();
