@@ -146,15 +146,29 @@
   <div id="toolbar-ai" class="toolbar">
     <div class="menu" data-menu="rewrite">
       <button class="tb tb-ai menu-title" title="Rewrite selected text">Rewrite ▾</button>
-      <div class="menu-drop">
+      <div class="menu-drop rewrite-menu">
+        <div class="menu-section-label">Edit</div>
         <button data-rewrite="default">Improve (preserve meaning)</button>
         <button data-rewrite="clearer">Clearer</button>
         <button data-rewrite="stronger">Stronger</button>
         <button data-rewrite="literary">More literary</button>
         <button data-rewrite="simpler">Simpler</button>
-        <button data-rewrite="tone">Change tone…</button>
         <button data-rewrite="dialogue">Dialogue pass</button>
         <button data-rewrite="description">Description pass</button>
+        <div class="menu-section-label">Tone</div>
+        <div class="tone-grid">
+          <button data-rewrite="tone-warm">Warm</button>
+          <button data-rewrite="tone-dry">Dry</button>
+          <button data-rewrite="tone-playful">Playful</button>
+          <button data-rewrite="tone-tense">Tense</button>
+          <button data-rewrite="tone-ominous">Ominous</button>
+          <button data-rewrite="tone-gritty">Gritty</button>
+          <button data-rewrite="tone-intimate">Intimate</button>
+          <button data-rewrite="tone-sensual">Sensual</button>
+          <button data-rewrite="tone-romantic">Romantic</button>
+          <button data-rewrite="tone-cinematic">Cinematic</button>
+        </div>
+        <button data-rewrite="tone">Custom tone…</button>
         <button data-rewrite="custom">Custom instruction…</button>
       </div>
     </div>
