@@ -350,6 +350,9 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
 .provider-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .provider-grid .field { margin: 4px 0 12px; }
 .provider-grid input { width: 100%; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--bg-editor); color: var(--ink); padding: 8px 10px; }
+.byo-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.byo-row > div { min-width: 0; }
+.byo-row .muted { display: block; overflow-wrap: anywhere; }
 .check-row { display: flex; align-items: flex-start; gap: 8px; padding: 5px 2px; font-size: 13px; }
 .check-row input { margin-top: 2px; }
 .check-row .muted { display: block; }

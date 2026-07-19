@@ -36,6 +36,8 @@ const STORE_KEY = "writer.project.v1";
 const GEMINI_SECRET_KEY = "writer.secret.gemini";
 const GROQ_SECRET_KEY = "writer.secret.groq";
 const OPENROUTER_SECRET_KEY = "writer.secret.openrouter";
+const HORDE_SECRET_KEY = "writer.secret.aihorde";
+const BYO_SECRET_KEY = "writer.secret.byo";
 const RECOVERY_KEY = "writer.recovery.v1";
 const FIRST_RUN_KEY = "writer.firstRun.seen.v1";
 const FOLDERS = [
@@ -98,10 +100,13 @@ let dirHandle = null;        // File System Access directory handle (optional)
 let geminiKey = null;
 let groqKey = null;
 let openRouterKey = null;
+let hordeKey = null;
+let byoKeys = {};
 let pendingOp = null;        // the AI operation currently in preflight/diff
 let pendingKnowledgeFile = null;
 let ollamaModels = null;     // detected model list, session only
 let koboldModels = null;     // model currently loaded by KoboldAI/KoboldCpp
+let hordeModels = null;      // currently available volunteer-hosted text models
 
 function defaultProject() {
   const now = Date.now();
@@ -144,6 +149,9 @@ function defaultProject() {
       geminiModel: "gemini-2.5-flash",
       groqModel: "qwen/qwen3.6-27b",
       openRouterModel: "openrouter/free",
+      hordeModel: "__any__",
+      hordeMaxTokens: 700,
+      byoProviders: [],
       panels: { project: true, sidecar: true },
       contextChecked: null, // filled on first use
     },
@@ -158,6 +166,9 @@ function ensureProjectSchema() {
     doc.tags = Array.isArray(doc.tags) ? doc.tags : [];
   });
   project.training ||= { captureApproved: true, updated: Date.now() };
+  project.settings.hordeModel ||= "__any__";
+  project.settings.hordeMaxTokens = Number(project.settings.hordeMaxTokens) || 700;
+  project.settings.byoProviders = Array.isArray(project.settings.byoProviders) ? project.settings.byoProviders : [];
 }
 
 function loadProject() {
@@ -754,6 +765,85 @@ const KoboldProvider = {
   },
 };
 
+const AIHordeProvider = {
+  id: "aihorde",
+  name: "AI Horde (free community cloud)",
+  kind: "cloud",
+  note: "Free volunteer-hosted fiction models. Prompts are processed by community-operated workers; send excerpts and retrieved lore only, never private or identifying material.",
+  models() {
+    const any = { id: "__any__", label: "Fastest available text model", provider: "aihorde" };
+    if (!hordeModels || !hordeModels.length) return [any];
+    const rows = hordeModels.map((m) => ({
+      id: m.name,
+      label: `${m.name.replace(/^(aphrodite|koboldcpp|agents)\//, "")} · ~${Math.max(0, Number(m.eta) || 0)}s · ${m.count || 1} worker${Number(m.count) === 1 ? "" : "s"}`,
+      provider: "aihorde",
+    }));
+    if (project.settings.modelId && project.settings.providerId === "aihorde" && project.settings.modelId !== "__any__" && !rows.some((m) => m.id === project.settings.modelId)) {
+      rows.unshift({ id: project.settings.modelId, label: project.settings.modelId + " · currently unavailable", provider: "aihorde" });
+    }
+    return [any, ...rows];
+  },
+  async detect() {
+    const res = await fetch("https://aihorde.net/api/v2/status/models?type=text");
+    if (!res.ok) throw new Error("AI Horde status responded " + res.status);
+    const data = await res.json();
+    hordeModels = (Array.isArray(data) ? data : [])
+      .filter((m) => m.type === "text" && m.name)
+      .sort((a, b) => (Number(a.eta) || 0) - (Number(b.eta) || 0) || (Number(b.performance) || 0) - (Number(a.performance) || 0));
+    return hordeModels;
+  },
+  async call({ system, messages }) {
+    const prompt = [system, ...messages.map((m) => `${m.role === "assistant" ? "Assistant" : "User"}: ${m.content}`), "Assistant:"].join("\n\n");
+    const selected = project.settings.modelId || project.settings.hordeModel || "__any__";
+    const create = await fetch("https://aihorde.net/api/v2/generate/text/async", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        apikey: hordeKey || "0000000000",
+        "Client-Agent": "Writer:0.1:https://github.com/D-the-Designer/massive-reference-engine",
+      },
+      body: JSON.stringify({
+        prompt,
+        models: selected === "__any__" ? [] : [selected],
+        trusted_workers: true,
+        validated_backends: true,
+        slow_workers: true,
+        allow_downgrade: true,
+        params: {
+          n: 1,
+          max_context_length: 8192,
+          max_length: Number(project.settings.hordeMaxTokens) || 700,
+          temperature: 0.8,
+          rep_pen: 1.08,
+          top_p: 0.92,
+          min_p: 0.05,
+          frmttriminc: true,
+          stop_sequence: ["\nUser:", "\n\nUser:"],
+        },
+      }),
+    });
+    if (!create.ok) throw new Error("AI Horde error " + create.status + ": " + (await create.text()).slice(0, 180));
+    const queued = await create.json();
+    if (!queued.id) throw new Error(queued.message || "AI Horde did not return a request ID.");
+
+    const deadline = Date.now() + 180000;
+    while (Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const status = await fetch(`https://aihorde.net/api/v2/generate/text/status/${encodeURIComponent(queued.id)}`);
+      if (!status.ok) throw new Error("AI Horde status error " + status.status);
+      const data = await status.json();
+      if (data.faulted || data.is_possible === false) throw new Error("No compatible AI Horde worker can complete this request right now.");
+      if (data.done) {
+        const text = data.generations && data.generations[0] && data.generations[0].text;
+        if (!text) throw new Error("AI Horde completed without generated text.");
+        return String(text).replace(/\nUser:[\s\S]*$/, "").trim();
+      }
+    }
+    await fetch(`https://aihorde.net/api/v2/generate/text/status/${encodeURIComponent(queued.id)}`, { method: "DELETE" }).catch(() => {});
+    throw new Error("AI Horde took longer than three minutes. Try Fastest available, a registered key, or Gemini.");
+  },
+};
+
 const GeminiProvider = {
   id: "gemini", name: "Gemini API (free tier)", kind: "cloud",
   note: "Google offers limited free-tier usage. Requests leave this device; free-tier content may be used to improve Google products.",
@@ -804,8 +894,37 @@ const OpenRouterProvider = openAICompatibleProvider({
   models: [{ id: "openrouter/free", label: "Free Models Router (model varies)", provider: "openrouter" }],
 });
 
-const PROVIDERS = { preview: PreviewProvider, ollama: OllamaProvider, kobold: KoboldProvider, gemini: GeminiProvider, groq: GroqProvider, openrouter: OpenRouterProvider };
-const currentProvider = () => PROVIDERS[project.settings.providerId] || PreviewProvider;
+const PROVIDERS = { preview: PreviewProvider, ollama: OllamaProvider, kobold: KoboldProvider, aihorde: AIHordeProvider, gemini: GeminiProvider, groq: GroqProvider, openrouter: OpenRouterProvider };
+
+function byoProvider(config) {
+  return {
+    id: config.id,
+    name: config.name,
+    kind: "cloud",
+    note: `Bring your own API connection to ${config.endpoint}. Requests leave this device. Writer does not include the API key in projects, exports, receipts, or prompts.`,
+    models: () => [{ id: config.model, label: config.model, provider: config.id }],
+    async call({ system, messages }) {
+      const apiKey = byoKeys[config.id];
+      if (!apiKey) throw new Error(`No API key set for ${config.name}. Tools ▸ Providers & models.`);
+      const res = await fetch(config.endpoint, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: "Bearer " + apiKey },
+        body: JSON.stringify({ model: config.model, messages: [{ role: "system", content: system }, ...messages], temperature: 0.8, max_tokens: 2048 }),
+      });
+      if (!res.ok) throw new Error(config.name + " error " + res.status + ": " + (await res.text()).slice(0, 180));
+      const data = await res.json();
+      const text = (((data.choices || [])[0] || {}).message?.content || "");
+      if (!text) throw new Error(config.name + " returned no generated text.");
+      return String(text).trim();
+    },
+  };
+}
+
+function allProviders() {
+  return [...Object.values(PROVIDERS), ...(project.settings.byoProviders || []).map(byoProvider)];
+}
+
+const currentProvider = () => allProviders().find((p) => p.id === project.settings.providerId) || PreviewProvider;
 const currentModelLabel = () => {
   const p = currentProvider();
   const m = p.models().find((m) => m.id === project.settings.modelId);
@@ -869,8 +988,8 @@ function contextChecklistHtml() {
   return Object.entries(groups).map(([g, items]) => `
     <div class="model-group"><div class="model-group-head">${esc(g)}</div>
       ${items.map((c) => `
-        <label class="check-row"><input type="checkbox" data-ctx="${esc(c.id)}" ${checked[c.id] ? "checked" : ""}>
-          <span>${esc(c.label)} <span class="muted">${c.content.trim().split(/\s+/).filter(Boolean).length} words</span></span>
+        <label class="check-row"><input type="checkbox" data-ctx="${esc(c.id)}" ${checked[c.id] ? "checked" : ""} ${currentProvider().id === "aihorde" && c.doc && ["manuscript", "outline"].includes(c.doc.role) ? "disabled" : ""}>
+          <span>${esc(c.label)} <span class="muted">${c.content.trim().split(/\s+/).filter(Boolean).length} words${currentProvider().id === "aihorde" && c.doc && ["manuscript", "outline"].includes(c.doc.role) ? " · excluded from volunteer workers" : ""}</span></span>
         </label>`).join("")}
     </div>`).join("");
 }
@@ -1036,7 +1155,7 @@ function beginOperation(kind, subtype) {
 
 function modelOptionsHtml() {
   let html = "";
-  for (const p of Object.values(PROVIDERS)) {
+  for (const p of allProviders()) {
     html += `<optgroup label="${esc(p.name)}${p.kind === "cloud" ? " — leaves device" : " — stays local"}">`;
     for (const m of p.models()) {
       const sel = project.settings.providerId === p.id && project.settings.modelId === m.id ? "selected" : "";
@@ -1088,6 +1207,8 @@ function showPreflight() {
     const [pid, mid] = e.target.value.split("::");
     setModel(pid, mid);
     $("#pf-banner", card).innerHTML = scopeBannerHtml();
+    $("#pf-context", card).innerHTML = contextChecklistHtml();
+    bindContextChecklist($("#pf-context", card));
   });
   $("#pf-privacy", card).addEventListener("change", (e) => {
     project.settings.privacy = e.target.value;
@@ -1130,7 +1251,13 @@ function cloudGate(card) {
 }
 
 function buildRequest(op) {
-  const ctx = selectedContextItems().filter((c) => !(op.kind !== "continue" && c.id === "selection")); // selection is already the passage
+  let ctx = selectedContextItems().filter((c) => c.id !== "selection"); // selection/current excerpt is already the passage
+  if (currentProvider().id === "aihorde") {
+    // Volunteer workers receive the prompt. Never duplicate or attach a whole
+    // manuscript/outline; only explicitly selected lore/style/source material
+    // is eligible, and long documents are reduced by retrieval below.
+    ctx = ctx.filter((c) => c.doc && ["lore", "style", "source"].includes(c.doc.role));
+  }
   const system = "You are a writing assistant inside Writer, a local-first writing app. Follow the instruction exactly. Return only the resulting prose — no preamble, no quotation marks around the result, no commentary.";
   let user = "";
   const contextNames = [];
@@ -1515,7 +1642,7 @@ async function fsSyncAll() {
       note: "Optional metadata. The Markdown files are canonical; this file is never required to open them. No secrets are stored here.",
       docs: project.docs.map((d) => ({ id: d.id, folder: d.folder, name: d.name, file: slug(d.name) + ".md", role: d.role, state: d.state, tags: d.tags || [], importedFrom: d.importedFrom || null, created: d.created, modified: d.modified })),
       activeDocId: project.activeDocId,
-      settings: { theme: project.settings.theme, font: project.settings.font, size: project.settings.size, privacy: project.settings.privacy, providerId: project.settings.providerId, modelId: project.settings.modelId, ollamaHost: project.settings.ollamaHost, ollamaModel: project.settings.ollamaModel, koboldHost: project.settings.koboldHost, koboldModel: project.settings.koboldModel, koboldTemperature: project.settings.koboldTemperature, koboldRepPenalty: project.settings.koboldRepPenalty, koboldMaxTokens: project.settings.koboldMaxTokens },
+      settings: { theme: project.settings.theme, font: project.settings.font, size: project.settings.size, privacy: project.settings.privacy, providerId: project.settings.providerId, modelId: project.settings.modelId, ollamaHost: project.settings.ollamaHost, ollamaModel: project.settings.ollamaModel, koboldHost: project.settings.koboldHost, koboldModel: project.settings.koboldModel, koboldTemperature: project.settings.koboldTemperature, koboldRepPenalty: project.settings.koboldRepPenalty, koboldMaxTokens: project.settings.koboldMaxTokens, hordeModel: project.settings.hordeModel, hordeMaxTokens: project.settings.hordeMaxTokens, byoProviders: project.settings.byoProviders },
     };
     await fsWriteFile(dirHandle, "writer-project.json", JSON.stringify(meta, null, 2));
     await fsWriteFile(dirHandle, "davenport-manifest.json", JSON.stringify({
@@ -1654,7 +1781,7 @@ const FORMAT_ACTIONS = {
    ══════════════════════════════════════════════════════════════ */
 function showModelPicker() {
   const rows = [];
-  for (const p of Object.values(PROVIDERS)) {
+  for (const p of allProviders()) {
     rows.push(`<div class="model-group"><div class="model-group-head">${esc(p.name)}</div>`);
     for (const m of p.models()) {
       const sel = project.settings.providerId === p.id && project.settings.modelId === m.id;
@@ -1709,10 +1836,15 @@ function showPrivacyChooser() {
 }
 
 function showProviders() {
-  const remembered = !!localStorage.getItem(GEMINI_SECRET_KEY) || !!localStorage.getItem(GROQ_SECRET_KEY) || !!localStorage.getItem(OPENROUTER_SECRET_KEY);
+  const remembered = !!localStorage.getItem(GEMINI_SECRET_KEY) || !!localStorage.getItem(GROQ_SECRET_KEY) || !!localStorage.getItem(OPENROUTER_SECRET_KEY) || !!localStorage.getItem(HORDE_SECRET_KEY) || !!localStorage.getItem(BYO_SECRET_KEY);
+  const byoRows = (project.settings.byoProviders || []).map((p) => `
+    <div class="byo-row">
+      <div><b>${esc(p.name)}</b><span class="muted">${esc(p.model)} · ${esc(p.endpoint)}</span></div>
+      <button class="secondary-btn" data-byo-remove="${esc(p.id)}">Remove</button>
+    </div>`).join("");
   const card = openModal(`
     <h2 class="modal-title">Providers &amp; models</h2>
-    <p class="modal-sub">Local and cloud models are replaceable providers, selected per task. Secrets are never written into the project folder.</p>
+    <p class="modal-sub">Choose built-in services or bring your own API. Keys are never written into project folders, backups, prompts, revisions, or privacy receipts.</p>
     <div class="model-group"><div class="model-group-head">Ollama (local)</div>
       <div class="field"><label class="field-label" for="pr-ollama-host">Server</label>
         <input type="text" id="pr-ollama-host" value="${esc(project.settings.ollamaHost)}"></div>
@@ -1734,13 +1866,32 @@ function showProviders() {
       <button class="secondary-btn" id="pr-kobold-detect">Detect loaded writing model</button>
       <span class="muted" id="pr-kobold-out">${koboldModels ? "Found: " + esc(koboldModels.join(", ")) : ""}</span>
     </div>
+    <div class="model-group"><div class="model-group-head">AI Horde (free community cloud)</div>
+      <div class="scope-banner cloud"><b>Processed by volunteer-operated workers.</b> Writer sends only the active excerpt and the relevant lore excerpts you approve. Do not send private, identifying, or commercially sensitive material.</div>
+      <div class="field"><label class="field-label" for="pr-horde-key">AI Horde API key <span class="muted">(optional)</span></label>
+        <input type="password" id="pr-horde-key" placeholder="${hordeKey && hordeKey !== "0000000000" ? "•••• registered key set" : "Leave blank for anonymous access"}"></div>
+      <div class="field"><label class="field-label" for="pr-horde-max">Maximum new tokens</label>
+        <input type="number" id="pr-horde-max" min="80" max="4096" step="20" value="${Number(project.settings.hordeMaxTokens || 700)}"></div>
+      <button class="secondary-btn" id="pr-horde-detect">Load live fiction models</button>
+      <span class="muted" id="pr-horde-out">${hordeModels ? hordeModels.length + " live text models found" : "Fastest available works without loading the list."}</span>
+    </div>
     <div class="model-group"><div class="model-group-head">Free-tier cloud APIs</div>
       <div class="scope-banner cloud"><b>Leaves this device.</b> Free plans have rate limits and provider-specific data policies. Gemini free-tier content may be used to improve Google products. Use Local-only with Ollama or Kobold for private drafts.</div>
       <div class="field"><label class="field-label" for="pr-gemini-key">Gemini API key</label><input type="password" id="pr-gemini-key" placeholder="${geminiKey ? "•••• key set for this session" : "Google AI Studio key"}"></div>
       <div class="field"><label class="field-label" for="pr-groq-key">Groq API key</label><input type="password" id="pr-groq-key" placeholder="${groqKey ? "•••• key set for this session" : "Groq free-plan key"}"></div>
       <div class="field"><label class="field-label" for="pr-openrouter-key">OpenRouter API key</label><input type="password" id="pr-openrouter-key" placeholder="${openRouterKey ? "•••• key set for this session" : "OpenRouter free-model key"}"></div>
+    </div>
+    <div class="model-group"><div class="model-group-head">Bring your own API</div>
+      <p class="muted">Add any OpenAI-compatible chat-completions service. Reopen this screen to add more connections. The service must permit requests from a browser.</p>
+      ${byoRows || `<p class="muted">No custom APIs added yet.</p>`}
+      <div class="provider-grid">
+        <div class="field"><label class="field-label" for="pr-byo-name">Name</label><input type="text" id="pr-byo-name" placeholder="My provider"></div>
+        <div class="field"><label class="field-label" for="pr-byo-model">Model name</label><input type="text" id="pr-byo-model" placeholder="provider/model-name"></div>
+      </div>
+      <div class="field"><label class="field-label" for="pr-byo-endpoint">Chat-completions URL</label><input type="url" id="pr-byo-endpoint" placeholder="https://example.com/v1/chat/completions"></div>
+      <div class="field"><label class="field-label" for="pr-byo-key">API key</label><input type="password" id="pr-byo-key" placeholder="Kept out of the project and receipts"></div>
       <label class="check-row"><input type="checkbox" id="pr-remember" ${remembered ? "checked" : ""}>
-        <span>Remember cloud keys in this browser's local storage
+        <span>Remember API keys in this browser's local storage
         <span class="muted">Off = kept in memory for this session only. A browser cannot use the OS keychain; prefer session-only on shared machines.</span></span></label>
     </div>
     <div class="modal-actions">
@@ -1770,6 +1921,26 @@ function showProviders() {
       out.textContent = "Not reachable (" + e.message + "). Start KoboldAI/KoboldCpp with a model loaded.";
     }
   });
+  $("#pr-horde-detect", card).addEventListener("click", async () => {
+    const out = $("#pr-horde-out", card);
+    out.textContent = "Checking the volunteer network…";
+    try {
+      const models = await AIHordeProvider.detect();
+      out.textContent = models.length
+        ? `Found ${models.length} live text models. Fastest reported: ${models[0].name} (~${Math.max(0, Number(models[0].eta) || 0)}s).`
+        : "No text models are reporting availability right now.";
+    } catch (e) {
+      out.textContent = "Could not load models (" + e.message + ").";
+    }
+  });
+  $$("[data-byo-remove]", card).forEach((button) => button.addEventListener("click", () => {
+    const id = button.dataset.byoRemove;
+    project.settings.byoProviders = project.settings.byoProviders.filter((p) => p.id !== id);
+    delete byoKeys[id];
+    if (project.settings.providerId === id) setModel("preview", "preview");
+    markDirty();
+    showProviders();
+  }));
   $("#pr-cancel", card).addEventListener("click", closeModal);
   $("#pr-save", card).addEventListener("click", () => {
     project.settings.ollamaHost = $("#pr-ollama-host", card).value.trim() || "http://localhost:11434";
@@ -1779,15 +1950,33 @@ function showProviders() {
     project.settings.koboldTemperature = Number($("#pr-kobold-temp", card).value) || 0.8;
     project.settings.koboldRepPenalty = Number($("#pr-kobold-rep", card).value) || 1.1;
     project.settings.koboldMaxTokens = Number($("#pr-kobold-max", card).value) || 512;
+    project.settings.hordeMaxTokens = Number($("#pr-horde-max", card).value) || 700;
     const gKey = $("#pr-gemini-key", card).value.trim(); if (gKey) geminiKey = gKey;
     const qKey = $("#pr-groq-key", card).value.trim(); if (qKey) groqKey = qKey;
     const rKey = $("#pr-openrouter-key", card).value.trim(); if (rKey) openRouterKey = rKey;
+    const hKey = $("#pr-horde-key", card).value.trim(); if (hKey) hordeKey = hKey;
+    const byoName = $("#pr-byo-name", card).value.trim();
+    const byoModel = $("#pr-byo-model", card).value.trim();
+    const byoEndpoint = $("#pr-byo-endpoint", card).value.trim();
+    const byoKey = $("#pr-byo-key", card).value.trim();
+    if (byoName || byoModel || byoEndpoint || byoKey) {
+      if (!byoName || !byoModel || !/^https?:\/\//i.test(byoEndpoint) || !byoKey) {
+        toast("Bring your own API needs a name, model, valid URL, and API key.", 5000);
+        return;
+      }
+      const id = "byo-" + uid();
+      project.settings.byoProviders.push({ id, name: byoName, model: byoModel, endpoint: byoEndpoint });
+      byoKeys[id] = byoKey;
+    }
     if ($("#pr-remember", card).checked) {
       if (geminiKey) localStorage.setItem(GEMINI_SECRET_KEY, geminiKey);
       if (groqKey) localStorage.setItem(GROQ_SECRET_KEY, groqKey);
       if (openRouterKey) localStorage.setItem(OPENROUTER_SECRET_KEY, openRouterKey);
+      if (hordeKey && hordeKey !== "0000000000") localStorage.setItem(HORDE_SECRET_KEY, hordeKey);
+      localStorage.setItem(BYO_SECRET_KEY, JSON.stringify(byoKeys));
     } else {
       localStorage.removeItem(GEMINI_SECRET_KEY); localStorage.removeItem(GROQ_SECRET_KEY); localStorage.removeItem(OPENROUTER_SECRET_KEY);
+      localStorage.removeItem(HORDE_SECRET_KEY); localStorage.removeItem(BYO_SECRET_KEY);
     }
     markDirty();
     renderStatus();
@@ -2194,6 +2383,8 @@ function init() {
   geminiKey = localStorage.getItem(GEMINI_SECRET_KEY) || null;
   groqKey = localStorage.getItem(GROQ_SECRET_KEY) || null;
   openRouterKey = localStorage.getItem(OPENROUTER_SECRET_KEY) || null;
+  hordeKey = localStorage.getItem(HORDE_SECRET_KEY) || "0000000000";
+  try { byoKeys = JSON.parse(localStorage.getItem(BYO_SECRET_KEY) || "{}"); } catch (_) { byoKeys = {}; }
   checkedContext();
   bindEvents();
   renderAll();

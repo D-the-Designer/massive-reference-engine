@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Added AI Horde as a first-class free community-cloud fiction provider with
+  anonymous access, optional registered keys, live model discovery, trusted
+  worker routing, and asynchronous queue polling.
+- Added Bring Your Own API connections for multiple OpenAI-compatible
+  chat-completions providers. Keys remain separate from project data, exports,
+  prompts, revisions, and privacy receipts.
 - Replaced the tall floating Rewrite dropdown with an expanding toolbar tray
   that pushes the manuscript down instead of covering the text.
 - Added a controlled Company Man house voice derived from Chapters 1–5, with

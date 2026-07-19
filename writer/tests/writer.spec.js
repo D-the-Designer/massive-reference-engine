@@ -388,10 +388,60 @@ test.describe("Writer release contract", () => {
 
   test("free cloud providers are clearly labeled", async ({ page }) => {
     await page.getByRole("button", { name: /Model:/ }).first().click();
+    await expect(page.getByRole("button", { name: /Fastest available text model/ })).toContainText("leaves device");
     await expect(page.getByRole("button", { name: /Gemini 2.5 Flash \(free tier\)/ })).toContainText("leaves device");
     await expect(page.getByRole("button", { name: /Qwen 3.6 27B \(free plan\)/ })).toContainText("leaves device");
     await expect(page.getByRole("button", { name: /Free Models Router/ })).toContainText("leaves device");
     await expect(page.getByText("Claude Sonnet 5", { exact: true })).toHaveCount(0);
+  });
+
+  test("AI Horde generation uses the free async text API and limited request context", async ({ page }) => {
+    let submitted;
+    await page.route("https://aihorde.net/api/v2/generate/text/async", async (route) => {
+      submitted = route.request().postDataJSON();
+      expect(route.request().headers().apikey).toBe("0000000000");
+      await route.fulfill({ status: 202, contentType: "application/json", body: JSON.stringify({ id: "horde-test-request" }) });
+    });
+    await page.route("https://aihorde.net/api/v2/generate/text/status/horde-test-request", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ done: true, faulted: false, is_possible: true, generations: [{ text: "The deck answered with a tired metallic groan." }] }),
+      });
+    });
+    const editor = page.locator("#editor");
+    await editor.selectText();
+    await page.getByRole("button", { name: "Rewrite ▾" }).click();
+    await page.getByRole("button", { name: "Clearer", exact: true }).click();
+    await page.locator("#pf-model").selectOption("aihorde::__any__");
+    await page.locator("#pf-privacy").selectOption("cloud");
+    await page.locator("#cloud-consent").check();
+    await expect(page.locator("#pf-banner")).toContainText("AI Horde");
+    await page.getByRole("button", { name: "Run rewrite" }).click();
+    await expect(page.getByRole("heading", { name: "Preview — Rewrite" })).toBeVisible();
+    expect(submitted.models).toEqual([]);
+    expect(submitted.trusted_workers).toBe(true);
+    expect(submitted.validated_backends).toBe(true);
+    expect(submitted.prompt.match(/The harbor was quiet at that hour/g)).toHaveLength(1);
+    await page.getByRole("button", { name: "Keep original" }).click();
+  });
+
+  test("Bring your own API adds a selectable model without putting its key in project data", async ({ page }) => {
+    await page.getByRole("button", { name: "Tools", exact: true }).click();
+    await page.getByRole("button", { name: "Providers & models…" }).click();
+    await expect(page.getByText("Bring your own API", { exact: true })).toBeVisible();
+    await page.locator("#pr-byo-name").fill("My Fiction Cloud");
+    await page.locator("#pr-byo-model").fill("fiction/model-24b");
+    await page.locator("#pr-byo-endpoint").fill("https://models.example/v1/chat/completions");
+    await page.locator("#pr-byo-key").fill("secret-test-key");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: /Model:/ }).first().click();
+    await expect(page.getByRole("button", { name: /fiction\/model-24b/ })).toContainText("leaves device");
+    const stored = await page.evaluate(() => localStorage.getItem("writer.project.v1"));
+    expect(stored).toContain("My Fiction Cloud");
+    expect(stored).not.toContain("secret-test-key");
+    expect(await page.evaluate(() => localStorage.getItem("writer.secret.byo"))).toBeNull();
   });
 
   test("fiction model catalog labels adult models and classic Kobold lineage", async ({ page }) => {

@@ -78,6 +78,21 @@ Models are replaceable adapters, chosen per task and never hidden:
 | **Gemini API** | leaves device | Limited free tier through Google AI Studio. Free-tier content may be used to improve Google products. |
 | **Groq** | leaves device | Published free-plan limits with fast hosted open-model inference, including GPT-OSS. |
 | **OpenRouter** | leaves device | `openrouter/free` routes among currently available free models; model choice and availability can vary. |
+| **AI Horde** | leaves device | Free community-cloud text generation. Requests are handled by volunteer-operated workers; anonymous use has the lowest queue priority. |
+| **Bring your own API** | leaves device | Add multiple OpenAI-compatible chat-completions endpoints and model names. |
+
+AI Horde works immediately with its anonymous key. A registered AI Horde key
+improves queue priority through Kudos. Writer can load the currently available
+text models and their reported wait estimates, or use **Fastest available text
+model**. Because volunteer workers receive the prompt, use only selected
+passages and retrieved lore excerpts; do not send identifying or commercially
+sensitive material.
+
+Bring Your Own API connections store the provider name, endpoint, and model in
+the project, but never the API key. Keys are session-only unless you explicitly
+choose browser storage, and are excluded from project folders, backups,
+prompts, revisions, and privacy receipts. Custom endpoints must support the
+OpenAI chat-completions request and response format and allow browser requests.
 
 **Tools ▸ Fiction model catalog…** includes curated local-fiction choices with adult-content and license labels. Erebus v3 7B Q4 is the recommended practical adult-fiction starting point for a 16 GB Mac; Tiefighter 13B is a larger optional hybrid. Classic Colab families such as Nerys, Janeway, Skein, Shinen, Lit, and Nerybus are documented as lineage rather than presented as automatic downloads.
 
