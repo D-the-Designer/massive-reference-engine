@@ -932,6 +932,7 @@ const OP_DEFS = {
   guided: { label: "Guided Write", needsSelection: false },
   describe: { label: "Describe", needsSelection: true },
   brainstorm: { label: "Brainstorm", needsSelection: false },
+  plotimprov: { label: "Plot Improv", needsSelection: false },
   firstdraft: { label: "First Draft", needsSelection: false },
   feedback: { label: "Feedback", needsSelection: false },
 };
@@ -1009,6 +1010,10 @@ function beginOperation(kind, subtype) {
     text = ta.value.slice(Math.max(0, selStart - 2000), selStart);
     selEnd = selStart;
     instruction = `Brainstorm 10 distinct, story-specific ideas for: ${topic.trim()}. Use the Story Bible and current draft. Keep each idea concise and avoid generic suggestions.`;
+  } else if (kind === "plotimprov") {
+    text = ta.value.slice(Math.max(0, selStart - 5000), selStart);
+    selEnd = selStart;
+    instruction = "Improvise 8 distinct next plot moves that could grow naturally from the current scene. Each move must be surprising but causally plausible, arise from existing character motives, material circumstances, unresolved tensions, or selected project lore, and create a useful choice or consequence. Vary scale and emotional direction. Do not contradict established canon, invent unsupported lore, solve the central conflict too easily, or merely repeat the obvious next beat. Give each option a short title and 2–3 concrete sentences; do not draft the scene.";
   } else if (kind === "firstdraft") {
     text = ta.value.slice(Math.max(0, selStart - 2500), selStart);
     selEnd = selStart;

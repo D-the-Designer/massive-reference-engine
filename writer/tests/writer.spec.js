@@ -140,6 +140,18 @@ test.describe("Writer release contract", () => {
     await page.getByRole("button", { name: "Cancel", exact: true }).click();
   });
 
+  test("plot improvisation proposes lore-aware moves without changing the manuscript", async ({ page }) => {
+    const editor = page.locator("#editor");
+    const before = await editor.inputValue();
+    await page.getByRole("button", { name: "Plot Improv", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Plot Improv — review before submission" })).toBeVisible();
+    await expect(page.locator("#pf-instruction")).toContainText("8 distinct next plot moves");
+    await expect(page.locator("#pf-instruction")).toContainText("selected project lore");
+    await expect(page.locator("#pf-instruction")).toContainText("do not draft the scene");
+    await expect(editor).toHaveValue(before);
+    await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  });
+
   test("Preview renders escaped Markdown safely", async ({ page }) => {
     await page.locator("#editor").fill("# Heading\n\n<script>window.pwned=true</script>\n\n**bold**");
     await page.getByRole("button", { name: "View", exact: true }).click();
