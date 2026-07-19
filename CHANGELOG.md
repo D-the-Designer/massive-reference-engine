@@ -12,3 +12,4 @@
 - Fiction tools inspired by modern novel-writing workflows: Guided Write, Describe, Brainstorm, First Draft, Feedback, and visible Story Bible context.
 - Free-tier Gemini, Groq, and OpenRouter cloud providers; paid API routes are not exposed.
 - Local `.docx` import into a new editable Writer document, with headings, basic formatting, lists, links, and tables preserved as Markdown.
+- Local `.txt`, `.rtf`, and `.md` opening; Markdown remains portable for Davenport Notes and other editors.

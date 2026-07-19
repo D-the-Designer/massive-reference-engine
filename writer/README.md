@@ -26,7 +26,7 @@ blocking, unavailable local providers, privacy receipts, revisions, themes,
 responsive behavior, and Markdown/TXT/HTML copy exports. GitHub Actions runs
 the same suite for Writer pull requests and changes to `main`.
 
-The project is persisted in browser storage automatically. **File ▸ Open Word document (.docx)…** imports Word text, headings, basic character formatting, lists, links, and tables into a new editable Writer document; the original Word file is never modified. For real portable project files, use **File ▸ Connect project folder…** (Chromium-based browsers): Writer then reads/writes an ordinary folder you can inspect, back up, and open with any tool:
+The project is persisted in browser storage automatically. **File ▸ Open document…** opens `.docx`, `.txt`, `.rtf`, and `.md` files as new editable Writer documents; the original file is never modified. Word imports preserve text, headings, basic character formatting, lists, links, and tables as Markdown. RTF imports preserve text and common bold, italic, underline, paragraph, tab, and Unicode formatting. Markdown remains plain portable Markdown, suitable for Davenport Notes or any other Markdown editor. For real portable project files, use **File ▸ Connect project folder…** (Chromium-based browsers): Writer then reads/writes an ordinary folder you can inspect, back up, and open with any tool:
 
 ```
 My Project/

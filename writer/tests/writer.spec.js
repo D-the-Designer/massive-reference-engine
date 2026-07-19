@@ -160,8 +160,8 @@ test.describe("Writer release contract", () => {
     const docx = storedZip({ "word/document.xml": documentXml });
 
     await page.getByRole("button", { name: "File", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Open Word document (.docx)…" })).toBeVisible();
-    await page.locator("#docx-file-input").setInputFiles({
+    await expect(page.getByRole("button", { name: "Open document (.docx, .txt, .rtf, .md)…" })).toBeVisible();
+    await page.locator("#document-file-input").setInputFiles({
       name: "My Novel.docx",
       mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       buffer: docx,
@@ -171,8 +171,25 @@ test.describe("Writer release contract", () => {
     await expect(page.locator("#editor")).toHaveValue(/# Imported Chapter/);
     await expect(page.locator("#editor")).toHaveValue(/\*\*bold words\*\*/);
     await expect(page.locator("#editor")).toHaveValue(/\| Name \| Role \|/);
-    await expect(page.locator("#toast")).toContainText("original Word file was not changed");
+    await expect(page.locator("#toast")).toContainText("original file was not changed");
   });
+
+  for (const sample of [
+    { name: "Notes.txt", mimeType: "text/plain", source: "Plain text notes.", expected: "Plain text notes." },
+    { name: "Davenport.md", mimeType: "text/markdown", source: "# Davenport Notes\n\nPortable Markdown.", expected: "# Davenport Notes\n\nPortable Markdown." },
+    { name: "Legacy.rtf", mimeType: "text/rtf", source: String.raw`{\rtf1\ansi Legacy \b bold\b0  text.\par Next paragraph.}`, expected: "Legacy **bold** text.\n\nNext paragraph." },
+  ]) {
+    test(`opens ${sample.name.split(".").pop()} files without changing the source format`, async ({ page }) => {
+      await page.locator("#document-file-input").setInputFiles({
+        name: sample.name,
+        mimeType: sample.mimeType,
+        buffer: Buffer.from(sample.source),
+      });
+      await expect(page.locator("#doc-title")).toHaveValue(sample.name.replace(/\.[^.]+$/, ""));
+      await expect(page.locator("#editor")).toHaveValue(sample.expected);
+      await expect(page.locator("#toast")).toContainText("original file was not changed");
+    });
+  }
 
   test("themes and focus mode remain usable", async ({ page }) => {
     await page.getByRole("button", { name: "View", exact: true }).click();

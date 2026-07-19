@@ -327,17 +327,117 @@ async function docxToMarkdown(file) {
   return blocks.join("\n\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
-async function importDocx(file) {
+function rtfToMarkdown(source) {
+  if (!/^\s*\{\\rtf/i.test(source)) throw new Error("This does not appear to be a valid RTF document.");
+  const destinations = new Set(["fonttbl", "colortbl", "stylesheet", "info", "pict", "object", "header", "footer", "footnote", "filetbl", "listtable", "listoverridetable", "generator"]);
+  const stack = [];
+  let state = { bold: false, italic: false, underline: false, skip: false, uc: 1 };
+  let rendered = { bold: false, italic: false, underline: false };
+  let out = "";
+  let skipUnicodeFallback = 0;
+  const marker = { bold: "**", italic: "*", underline: "<u>" };
+  const closer = { bold: "**", italic: "*", underline: "</u>" };
+  const sync = (next) => {
+    if (rendered.bold === next.bold && rendered.italic === next.italic && rendered.underline === next.underline) return;
+    for (const key of ["underline", "italic", "bold"]) if (rendered[key]) out += closer[key];
+    for (const key of ["bold", "italic", "underline"]) if (next[key]) out += marker[key];
+    rendered = { bold: next.bold, italic: next.italic, underline: next.underline };
+  };
+  const append = (text) => {
+    if (state.skip || !text) return;
+    sync(state);
+    out += escapeMarkdownText(text);
+  };
+  const paragraph = () => {
+    if (state.skip) return;
+    sync({ bold: false, italic: false, underline: false });
+    out = out.replace(/[ \t]+$/g, "") + "\n\n";
+  };
+  for (let i = 0; i < source.length; i++) {
+    const char = source[i];
+    if (char === "{") { stack.push({ ...state }); continue; }
+    if (char === "}") {
+      const restored = stack.pop();
+      if (restored) {
+        const wasSkipped = state.skip;
+        state = restored;
+        if (!wasSkipped && !state.skip) sync(state);
+      }
+      continue;
+    }
+    if (char !== "\\") {
+      if (skipUnicodeFallback > 0) { skipUnicodeFallback--; continue; }
+      append(char === "\r" || char === "\n" ? "" : char);
+      continue;
+    }
+    const symbol = source[++i];
+    if (symbol === "\\" || symbol === "{" || symbol === "}") { append(symbol); continue; }
+    if (symbol === "'") {
+      const hex = source.slice(i + 1, i + 3);
+      if (/^[0-9a-f]{2}$/i.test(hex)) {
+        if (skipUnicodeFallback > 0) skipUnicodeFallback--;
+        else append(new TextDecoder("windows-1252").decode(Uint8Array.of(parseInt(hex, 16))));
+        i += 2;
+      }
+      continue;
+    }
+    if (symbol === "*") { state.skip = true; continue; }
+    if (symbol === "~") { append(" "); continue; }
+    if (symbol === "_") { append("-"); continue; }
+    if (!/[a-z]/i.test(symbol || "")) continue;
+    let word = symbol;
+    while (/[a-z]/i.test(source[i + 1] || "")) word += source[++i];
+    let sign = 1;
+    if (source[i + 1] === "-") { sign = -1; i++; }
+    let digits = "";
+    while (/\d/.test(source[i + 1] || "")) digits += source[++i];
+    const hasValue = digits.length > 0;
+    const value = hasValue ? sign * Number(digits) : 1;
+    if (source[i + 1] === " ") i++;
+    word = word.toLowerCase();
+    if (destinations.has(word)) { state.skip = true; continue; }
+    if (state.skip) continue;
+    if (word === "b") state.bold = value !== 0;
+    else if (word === "i") state.italic = value !== 0;
+    else if (word === "ul") state.underline = value !== 0;
+    else if (word === "ulnone") state.underline = false;
+    else if (word === "plain") state = { ...state, bold: false, italic: false, underline: false };
+    else if (word === "par") paragraph();
+    else if (word === "line") append("  \n");
+    else if (word === "tab") append("\t");
+    else if (word === "emdash") append("—");
+    else if (word === "endash") append("–");
+    else if (word === "bullet") append("•");
+    else if (word === "lquote" || word === "rquote") append("’");
+    else if (word === "ldblquote" || word === "rdblquote") append("”");
+    else if (word === "uc") state.uc = Math.max(0, value);
+    else if (word === "u") {
+      append(String.fromCodePoint(value < 0 ? value + 65536 : value));
+      skipUnicodeFallback = state.uc;
+    }
+    sync(state);
+  }
+  sync({ bold: false, italic: false, underline: false });
+  return out.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+async function importDocument(file) {
   try {
-    const content = await docxToMarkdown(file);
+    if (file.size > 50 * 1024 * 1024) throw new Error("That file is larger than Writer's 50 MB import limit.");
+    const extension = (file.name.match(/\.([^.]+)$/)?.[1] || "").toLowerCase();
+    let content;
+    if (extension === "docx") content = await docxToMarkdown(file);
+    else if (extension === "rtf") content = rtfToMarkdown(await file.text());
+    else if (extension === "txt" || extension === "md" || extension === "markdown") content = await file.text();
+    else throw new Error("Choose a .docx, .txt, .rtf, or .md file.");
     const now = Date.now();
-    const name = file.name.replace(/\.docx$/i, "").trim() || "Imported Word document";
+    const name = file.name.replace(/\.(docx|txt|rtf|md|markdown)$/i, "").trim() || "Imported document";
     const doc = { id: uid(), folder: "manuscript", name, content, created: now, modified: now, importedFrom: file.name };
     project.docs.push(doc);
     setActiveDoc(doc.id);
-    toast(`Opened “${file.name}” as an editable Writer document. The original Word file was not changed.`, 5200);
+    toast(`Opened “${file.name}” as an editable Writer document. The original file was not changed.`, 5200);
   } catch (error) {
-    toast("Could not open Word file: " + error.message, 5200);
+    toast("Could not open document: " + error.message, 5200);
   }
 }
 
@@ -1654,7 +1754,7 @@ function renderAll() {
    ══════════════════════════════════════════════════════════════ */
 const ACTIONS = {
   "new-doc": () => addDoc("manuscript"),
-  "open-docx": () => $("#docx-file-input").click(),
+  "open-document": () => $("#document-file-input").click(),
   "connect-folder": connectFolder,
   "save-now": () => { flushEditor(); markDirty(); toast("Saved."); },
   "snapshot": takeSnapshot,
@@ -1691,10 +1791,10 @@ const ACTIONS = {
 function closeMenus() { $$(".menu.open").forEach((m) => m.classList.remove("open")); }
 
 function bindEvents() {
-  $("#docx-file-input").addEventListener("change", async (event) => {
+  $("#document-file-input").addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
     event.target.value = "";
-    if (file) await importDocx(file);
+    if (file) await importDocument(file);
   });
 
   // menus: click title to toggle, click elsewhere to close
