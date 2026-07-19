@@ -44,6 +44,12 @@ const FOLDERS = [
   { key: "lore", label: "Lore & style" },
   { key: "sources", label: "Sources" },
 ];
+const DAV_STATES = ["RAW", "WORKING", "REVIEW", "APPROVED", "FINAL", "ARCHIVED"];
+const KNOWLEDGE_ROLES = {
+  lore: { label: "Lore / Production Bible", folder: "lore" },
+  style: { label: "Style guide", folder: "lore" },
+  source: { label: "Research source", folder: "sources" },
+};
 const PRIVACY = {
   local: { label: "Local-only", desc: "Cloud models are blocked. Nothing leaves this device." },
   hybrid: { label: "Hybrid", desc: "Cloud models allowed, but each cloud request needs an explicit per-request approval." },
@@ -93,12 +99,17 @@ let geminiKey = null;
 let groqKey = null;
 let openRouterKey = null;
 let pendingOp = null;        // the AI operation currently in preflight/diff
+let pendingKnowledgeFile = null;
 let ollamaModels = null;     // detected model list, session only
 let koboldModels = null;     // model currently loaded by KoboldAI/KoboldCpp
 
 function defaultProject() {
   const now = Date.now();
-  const mk = (folder, name, content) => ({ id: uid(), folder, name, content, created: now, modified: now });
+  const mk = (folder, name, content, role = folder === "manuscript" ? "manuscript" : folder === "outline" ? "outline" : folder === "sources" ? "source" : "lore") => ({
+    id: uid(), folder, name, content, role,
+    state: folder === "manuscript" || folder === "outline" ? "WORKING" : "APPROVED",
+    tags: [], created: now, modified: now,
+  });
   const docs = [
     mk("manuscript", "Chapter One", "The harbor was quiet at that hour, and the water held the color of old pewter.\n\nMara counted the boats twice before she let herself believe one was missing. It was really just the small blue skiff, the one nobody trusted past the breakwater, but its absence sat in her chest like a stone.\n\nShe walked the length of the dock very slowly, listening.\n"),
     mk("outline", "Outline", "# Working outline\n\n1. Mara notices the missing skiff at dawn.\n2. The harbormaster claims nothing is wrong.\n3. A note, half-soaked, names her brother.\n"),
@@ -137,6 +148,16 @@ function defaultProject() {
       contextChecked: null, // filled on first use
     },
   };
+}
+
+function ensureProjectSchema() {
+  project.version = Math.max(Number(project.version) || 1, 2);
+  project.docs.forEach((doc) => {
+    doc.role ||= doc.folder === "manuscript" ? "manuscript" : doc.folder === "outline" ? "outline" : doc.folder === "sources" ? "source" : /style/i.test(doc.name) ? "style" : "lore";
+    doc.state = DAV_STATES.includes(doc.state) ? doc.state : (doc.folder === "manuscript" || doc.folder === "outline" ? "WORKING" : "APPROVED");
+    doc.tags = Array.isArray(doc.tags) ? doc.tags : [];
+  });
+  project.training ||= { captureApproved: true, updated: Date.now() };
 }
 
 function loadProject() {
@@ -195,7 +216,11 @@ function addDoc(folder) {
   const name = window.prompt(`Name for the new ${folder} document:`, "Untitled");
   if (name === null) return;
   const now = Date.now();
-  const doc = { id: uid(), folder, name: name.trim() || "Untitled", content: "", created: now, modified: now };
+  const doc = {
+    id: uid(), folder, name: name.trim() || "Untitled", content: "",
+    role: folder === "manuscript" ? "manuscript" : folder === "outline" ? "outline" : folder === "sources" ? "source" : "lore",
+    state: "WORKING", tags: [], created: now, modified: now,
+  };
   project.docs.push(doc);
   setActiveDoc(doc.id);
   toast(`Added “${doc.name}” to ${folder}.`);
@@ -457,18 +482,27 @@ function rtfToMarkdown(source) {
   return out.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
-async function importDocument(file) {
+async function readImportFile(file) {
+  if (file.size > 50 * 1024 * 1024) throw new Error("That file is larger than Writer's 50 MB import limit.");
+  const extension = (file.name.match(/\.([^.]+)$/)?.[1] || "").toLowerCase();
+  if (extension === "docx") return docxToMarkdown(file);
+  if (extension === "rtf") return rtfToMarkdown(await file.text());
+  if (extension === "txt" || extension === "md" || extension === "markdown") return file.text();
+  throw new Error("Choose a .docx, .txt, .rtf, or .md file.");
+}
+
+async function importDocument(file, options = {}) {
   try {
-    if (file.size > 50 * 1024 * 1024) throw new Error("That file is larger than Writer's 50 MB import limit.");
-    const extension = (file.name.match(/\.([^.]+)$/)?.[1] || "").toLowerCase();
-    let content;
-    if (extension === "docx") content = await docxToMarkdown(file);
-    else if (extension === "rtf") content = rtfToMarkdown(await file.text());
-    else if (extension === "txt" || extension === "md" || extension === "markdown") content = await file.text();
-    else throw new Error("Choose a .docx, .txt, .rtf, or .md file.");
+    const content = await readImportFile(file);
     const now = Date.now();
     const name = file.name.replace(/\.(docx|txt|rtf|md|markdown)$/i, "").trim() || "Imported document";
-    const doc = { id: uid(), folder: "manuscript", name, content, created: now, modified: now, importedFrom: file.name };
+    const folder = options.folder || "manuscript";
+    const doc = {
+      id: uid(), folder, name, content,
+      role: options.role || (folder === "sources" ? "source" : folder === "lore" ? "lore" : "manuscript"),
+      state: options.state || (folder === "manuscript" ? "WORKING" : "APPROVED"),
+      tags: options.tags || [], created: now, modified: now, importedFrom: file.name,
+    };
     project.docs.push(doc);
     setActiveDoc(doc.id);
     toast(`Opened “${file.name}” as an editable Writer document. The original file was not changed.`, 5200);
@@ -789,11 +823,11 @@ function contextCandidates() {
   const sel = ta.value.slice(ta.selectionStart, ta.selectionEnd);
   if (sel.trim()) items.push({ id: "selection", label: "Current selection", group: "Editor", content: sel });
   const act = activeDoc();
-  items.push({ id: "doc:" + act.id, label: act.name + " (active)", group: "Editor", content: ta.value });
+  items.push({ id: "doc:" + act.id, label: act.name + " (active)", group: "Editor", content: ta.value, doc: act });
   for (const f of FOLDERS) {
     for (const d of docsIn(f.key)) {
       if (d.id === act.id) continue;
-      items.push({ id: "doc:" + d.id, label: d.name, group: f.label, content: d.content });
+      items.push({ id: "doc:" + d.id, label: d.name, group: f.label, content: d.content, doc: d });
     }
   }
   return items;
@@ -841,6 +875,36 @@ function bindContextChecklist(root) {
     renderStatus();
     markDirty();
   }));
+}
+
+function retrievalTerms(text) {
+  const stop = new Set(["the", "and", "that", "this", "with", "from", "into", "your", "after", "before", "about", "what", "when", "where", "have", "will", "would", "should", "could", "their", "there", "they", "them", "then", "only", "write", "text", "passage"]);
+  return new Set((String(text || "").toLowerCase().match(/[a-z0-9']{3,}/g) || []).filter((word) => !stop.has(word)));
+}
+
+function retrieveRelevantPassages(content, query, limit = 4200) {
+  const text = String(content || "").trim();
+  if (text.length <= limit) return { content: text, retrieved: false };
+  const terms = retrievalTerms(query);
+  const chunks = text.split(/\n(?=#{1,3}\s)|\n{2,}/).map((chunk, index) => ({ chunk: chunk.trim(), index })).filter((item) => item.chunk);
+  const scored = chunks.map((item) => {
+    const words = retrievalTerms(item.chunk);
+    let score = 0;
+    for (const term of terms) if (words.has(term)) score += term.length > 7 ? 3 : 1;
+    if (/^#{1,3}\s/.test(item.chunk)) score += 0.25;
+    return { ...item, score };
+  });
+  const selected = scored.filter((item) => item.score > 0).sort((a, b) => b.score - a.score || a.index - b.index);
+  if (!selected.length) selected.push(...scored.slice(0, 3));
+  const kept = [];
+  let length = 0;
+  for (const item of selected) {
+    if (length && length + item.chunk.length > limit) continue;
+    kept.push(item);
+    length += item.chunk.length + 2;
+    if (length >= limit) break;
+  }
+  return { content: kept.sort((a, b) => a.index - b.index).map((item) => item.chunk).join("\n\n"), retrieved: true };
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1038,10 +1102,17 @@ function buildRequest(op) {
   const ctx = selectedContextItems().filter((c) => !(op.kind !== "continue" && c.id === "selection")); // selection is already the passage
   const system = "You are a writing assistant inside Writer, a local-first writing app. Follow the instruction exactly. Return only the resulting prose — no preamble, no quotation marks around the result, no commentary.";
   let user = "";
-  for (const c of ctx) user += `[Context — ${c.label}]\n${c.content.trim()}\n\n`;
+  const contextNames = [];
+  const query = `${op.instruction}\n${op.text}`;
+  for (const c of ctx) {
+    const shouldRetrieve = c.doc && ["lore", "style", "source"].includes(c.doc.role);
+    const selected = shouldRetrieve ? retrieveRelevantPassages(c.content, query) : { content: c.content.trim(), retrieved: false };
+    user += `[Context — ${c.label}${selected.retrieved ? " · relevant excerpts" : ""}]\n${selected.content}\n\n`;
+    contextNames.push(c.label + (selected.retrieved ? " (relevant excerpts)" : ""));
+  }
   user += `Instruction: ${op.instruction}\n\n`;
   user += op.kind === "continue" ? `Excerpt (continue after this):\n${op.text}` : `Passage:\n${op.text}`;
-  return { system, messages: [{ role: "user", content: user }], contextNames: ctx.map((c) => c.label), op };
+  return { system, messages: [{ role: "user", content: user }], contextNames, op };
 }
 
 async function runPendingOp() {
@@ -1404,14 +1475,30 @@ async function fsSyncAll() {
     const revDir = await dirHandle.getDirectoryHandle("revisions", { create: true });
     await fsWriteFile(revDir, "revisions-log.json", JSON.stringify(project.revisions, null, 2));
     await dirHandle.getDirectoryHandle("exports", { create: true });
+    const trainingDir = await dirHandle.getDirectoryHandle("training", { create: true });
+    await fsWriteFile(trainingDir, "approved-examples.jsonl", trainingCorpusRecords().map((record) => JSON.stringify(record)).join("\n") + (trainingCorpusRecords().length ? "\n" : ""));
+    const knowledgeDir = await dirHandle.getDirectoryHandle("knowledge", { create: true });
+    await fsWriteFile(knowledgeDir, "knowledge-index.json", JSON.stringify({ schema: "davenport.writer.knowledge.v1", records: knowledgeIndex() }, null, 2));
     const meta = {
       writer: "0.1", name: project.name,
       note: "Optional metadata. The Markdown files are canonical; this file is never required to open them. No secrets are stored here.",
-      docs: project.docs.map((d) => ({ id: d.id, folder: d.folder, name: d.name, file: slug(d.name) + ".md", created: d.created, modified: d.modified })),
+      docs: project.docs.map((d) => ({ id: d.id, folder: d.folder, name: d.name, file: slug(d.name) + ".md", role: d.role, state: d.state, tags: d.tags || [], importedFrom: d.importedFrom || null, created: d.created, modified: d.modified })),
       activeDocId: project.activeDocId,
       settings: { theme: project.settings.theme, font: project.settings.font, size: project.settings.size, privacy: project.settings.privacy, providerId: project.settings.providerId, modelId: project.settings.modelId, ollamaHost: project.settings.ollamaHost, ollamaModel: project.settings.ollamaModel, koboldHost: project.settings.koboldHost, koboldModel: project.settings.koboldModel, koboldTemperature: project.settings.koboldTemperature, koboldRepPenalty: project.settings.koboldRepPenalty, koboldMaxTokens: project.settings.koboldMaxTokens },
     };
     await fsWriteFile(dirHandle, "writer-project.json", JSON.stringify(meta, null, 2));
+    await fsWriteFile(dirHandle, "davenport-manifest.json", JSON.stringify({
+      schema: "davenport.project.manifest.v1",
+      project: project.name,
+      local_first: true,
+      canonical_files: "Markdown documents in manuscript/, outline/, lore/, and sources/",
+      states: DAV_STATES,
+      assets: project.docs.map((d) => ({
+        id: d.id, path: `${d.folder}/${slug(d.name)}.md`, type: "text/markdown",
+        state: d.state, role: d.role, tags: d.tags || [], source: d.importedFrom || null,
+        created: new Date(d.created).toISOString(), updated: new Date(d.modified).toISOString(),
+      })),
+    }, null, 2));
     $("#status-save").textContent = "Saved · folder synced";
   } catch (e) {
     console.error("folder sync failed", e);
@@ -1439,6 +1526,10 @@ async function fsLoadAll() {
         folder: f.key,
         name: (metaDoc && metaDoc.name) || name.replace(/\.(md|txt|markdown)$/i, ""),
         content,
+        role: (metaDoc && metaDoc.role) || (f.key === "manuscript" ? "manuscript" : f.key === "outline" ? "outline" : f.key === "sources" ? "source" : /style/i.test(name) ? "style" : "lore"),
+        state: (metaDoc && metaDoc.state) || (f.key === "manuscript" || f.key === "outline" ? "WORKING" : "APPROVED"),
+        tags: (metaDoc && metaDoc.tags) || [],
+        importedFrom: metaDoc && metaDoc.importedFrom,
         created: (metaDoc && metaDoc.created) || now,
         modified: (metaDoc && metaDoc.modified) || now,
       });
@@ -1730,6 +1821,100 @@ function showFictionModels() {
   $("#fm-close", card).addEventListener("click", closeModal);
 }
 
+function trainingCorpusRecords() {
+  const records = [];
+  for (const doc of project.docs.filter((item) => item.role === "manuscript" && ["APPROVED", "FINAL"].includes(item.state))) {
+    const paragraphs = doc.content.split(/\n{2,}/).filter((part) => part.trim());
+    let chunk = "";
+    for (const paragraph of paragraphs) {
+      if (chunk && (chunk + "\n\n" + paragraph).split(/\s+/).length > 900) {
+        records.push({ type: "approved-prose", project: project.name, document: doc.name, state: doc.state, text: chunk, source_file: slug(doc.name) + ".md" });
+        chunk = "";
+      }
+      chunk += (chunk ? "\n\n" : "") + paragraph;
+    }
+    if (chunk.trim()) records.push({ type: "approved-prose", project: project.name, document: doc.name, state: doc.state, text: chunk, source_file: slug(doc.name) + ".md" });
+  }
+  return records;
+}
+
+function knowledgeIndex() {
+  return project.docs.filter((doc) => ["lore", "style", "source"].includes(doc.role) && !["ARCHIVED"].includes(doc.state)).map((doc) => ({
+    id: doc.id, name: doc.name, role: doc.role, state: doc.state, tags: doc.tags || [],
+    source_file: `${doc.folder}/${slug(doc.name)}.md`,
+    content: doc.content,
+  }));
+}
+
+function exportTrainingCorpus() {
+  flushEditor();
+  const records = trainingCorpusRecords();
+  if (!records.length) {
+    toast("No training examples yet. Mark finished manuscript documents [APPROVED] or [FINAL] first.", 5000);
+    return;
+  }
+  download(slug(project.name) + "-approved-training.jsonl", "application/x-ndjson", records.map((record) => JSON.stringify(record)).join("\n") + "\n");
+  toast(`Exported ${records.length} approved training example${records.length === 1 ? "" : "s"}.`);
+}
+
+function exportKnowledgeIndex() {
+  const records = knowledgeIndex();
+  download(slug(project.name) + "-knowledge-index.json", "application/json", JSON.stringify({ schema: "davenport.writer.knowledge.v1", project: project.name, generated: new Date().toISOString(), records }, null, 2));
+  toast(`Exported ${records.length} lore/style/source record${records.length === 1 ? "" : "s"}.`);
+}
+
+function showKnowledgeImport(file) {
+  pendingKnowledgeFile = file;
+  const card = openModal(`
+    <h2 class="modal-title">Import project knowledge</h2>
+    <p class="modal-sub">${esc(file.name)} will be copied into Writer as a Markdown knowledge document. The original remains unchanged.</p>
+    <div class="field"><label class="field-label" for="ki-role">Knowledge role</label>
+      <select id="ki-role">${Object.entries(KNOWLEDGE_ROLES).map(([id, role]) => `<option value="${id}">${esc(role.label)}</option>`).join("")}</select></div>
+    <div class="field"><label class="field-label" for="ki-state">Davenport state</label>
+      <select id="ki-state">${DAV_STATES.map((state) => `<option value="${state}" ${state === "APPROVED" ? "selected" : ""}>[${state}]</option>`).join("")}</select></div>
+    <div class="modal-actions"><button class="secondary-btn" id="ki-cancel">Cancel</button><button class="primary-btn" id="ki-import">Import knowledge</button></div>`);
+  $("#ki-cancel", card).addEventListener("click", () => { pendingKnowledgeFile = null; closeModal(); });
+  $("#ki-import", card).addEventListener("click", async () => {
+    const role = $("#ki-role", card).value;
+    const state = $("#ki-state", card).value;
+    const roleDef = KNOWLEDGE_ROLES[role];
+    const selectedFile = pendingKnowledgeFile;
+    pendingKnowledgeFile = null;
+    closeModal();
+    await importDocument(selectedFile, { folder: roleDef.folder, role, state });
+  });
+}
+
+function showKnowledgeTraining() {
+  flushEditor();
+  const knowledge = knowledgeIndex();
+  const approvedCount = project.docs.filter((doc) => doc.role === "manuscript" && ["APPROVED", "FINAL"].includes(doc.state)).length;
+  const rows = project.docs.map((doc) => `
+    <tr><td>${esc(doc.name)}</td><td>${esc(doc.role.toUpperCase())}</td><td>
+      <select data-doc-state="${esc(doc.id)}">${DAV_STATES.map((state) => `<option value="${state}" ${doc.state === state ? "selected" : ""}>[${state}]</option>`).join("")}</select>
+    </td></tr>`).join("");
+  const card = openModal(`
+    <h2 class="modal-title">Knowledge &amp; training</h2>
+    <p class="modal-sub">Retrieval uses relevant passages from selected lore, style, and source documents. Training export includes only manuscript documents you explicitly mark [APPROVED] or [FINAL]. It does not modify model weights by itself.</p>
+    <div class="scope-banner local"><b>Davenport-compatible:</b> Markdown files remain canonical. State, role, tags, and provenance live in the optional manifest; changing state does not move a file.</div>
+    <table class="routing"><tr><th>Document</th><th>Role</th><th>State</th></tr>${rows}</table>
+    <p class="muted">${knowledge.length} knowledge documents · ${approvedCount} approved/final manuscript documents eligible for training export.</p>
+    <div class="modal-actions">
+      <button class="secondary-btn spread" id="kt-import">Import Bible or guide…</button>
+      <button class="secondary-btn" id="kt-export-knowledge">Export knowledge index</button>
+      <button class="primary-btn" id="kt-export-training">Export approved training corpus</button>
+      <button class="secondary-btn" id="kt-close">Close</button>
+    </div>`, { wide: true });
+  $$("[data-doc-state]", card).forEach((select) => select.addEventListener("change", () => {
+    const doc = project.docs.find((item) => item.id === select.dataset.docState);
+    if (doc) { doc.state = select.value; doc.modified = Date.now(); markDirty(); renderProjectPanel(); }
+  }));
+  $("#kt-import", card).addEventListener("click", () => $("#knowledge-file-input").click());
+  $("#kt-export-knowledge", card).addEventListener("click", exportKnowledgeIndex);
+  $("#kt-export-training", card).addEventListener("click", exportTrainingCorpus);
+  $("#kt-close", card).addEventListener("click", closeModal);
+}
+
 function showAbout() {
   const card = openModal(`
     <h2 class="modal-title">Writer 0.1</h2>
@@ -1769,8 +1954,8 @@ function renderProjectPanel() {
     <div class="proj-section">
       <div class="proj-section-head"><span>${f.label}</span><button class="proj-add" data-add="${f.key}" title="New ${f.label} document">＋</button></div>
       ${docsIn(f.key).map((d) => `
-        <button class="proj-doc ${d.id === project.activeDocId ? "active" : ""}" data-doc="${d.id}">
-          <span class="doc-dot">●</span><span>${esc(d.name)}</span>
+        <button class="proj-doc ${d.id === project.activeDocId ? "active" : ""}" data-doc="${d.id}" title="[${esc(d.state)}] ${esc(d.role)}">
+          <span class="doc-dot">●</span><span>${esc(d.name)} <small class="muted">[${esc(d.state)}]</small></span>
         </button>`).join("") || `<div class="proj-doc muted" style="cursor:default">empty</div>`}
     </div>`).join("");
   $$("[data-doc]", root).forEach((b) => b.addEventListener("click", () => setActiveDoc(b.dataset.doc)));
@@ -1858,6 +2043,7 @@ const ACTIONS = {
   "theme-plain": () => { project.settings.theme = "plain"; renderAll(); markDirty(); },
   "providers": showProviders,
   "fiction-models": showFictionModels,
+  "knowledge-training": showKnowledgeTraining,
   "privacy-settings": showPrivacyChooser,
   "privacy-receipts": showPrivacyReceipts,
   "routing": showRouting,
@@ -1873,6 +2059,11 @@ function bindEvents() {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (file) await importDocument(file);
+  });
+  $("#knowledge-file-input").addEventListener("change", (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (file) showKnowledgeImport(file);
   });
 
   // menus: click title to toggle, click elsewhere to close
@@ -1965,6 +2156,7 @@ function bindEvents() {
 /* ── boot ─────────────────────────────────────────────────────── */
 function init() {
   project = loadProject();
+  ensureProjectSchema();
   project.privacyReceipts ||= [];
   geminiKey = localStorage.getItem(GEMINI_SECRET_KEY) || null;
   groqKey = localStorage.getItem(GROQ_SECRET_KEY) || null;

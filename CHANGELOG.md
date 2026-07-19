@@ -14,3 +14,4 @@
 - Local `.docx` import into a new editable Writer document, with headings, basic formatting, lists, links, and tables preserved as Markdown.
 - Local `.txt`, `.rtf`, and `.md` opening; Markdown remains portable for Davenport Notes and other editors.
 - Curated Kobold fiction model catalog with explicit adult-content, storage, and license labels.
+- Davenport-compatible knowledge roles and asset states, relevant-passage lore retrieval, and explicit approved-work JSONL training export.

@@ -81,6 +81,14 @@ Models are replaceable adapters, chosen per task and never hidden:
 
 **Tools ▸ Fiction model catalog…** includes curated local-fiction choices with adult-content and license labels. Erebus v3 7B Q4 is the recommended practical adult-fiction starting point for a 16 GB Mac; Tiefighter 13B is a larger optional hybrid. Classic Colab families such as Nerys, Janeway, Skein, Shinen, Lit, and Nerybus are documented as lineage rather than presented as automatic downloads.
 
+### Project knowledge and trainable work
+
+**Tools ▸ Knowledge & training…** imports `.docx`, `.rtf`, `.txt`, or `.md` files as explicit Lore / Production Bible, Style guide, or Research source records. Long knowledge documents use transparent keyword retrieval so AI requests receive relevant passages rather than an entire bible by default. The context receipt names retrieved-excerpt use.
+
+Documents use Davenport states `[RAW]`, `[WORKING]`, `[REVIEW]`, `[APPROVED]`, `[FINAL]`, and `[ARCHIVED]`. Only manuscript documents explicitly marked `[APPROVED]` or `[FINAL]` enter the exportable JSONL training corpus. Exporting a corpus prepares portable data; it does not silently fine-tune or alter a model.
+
+Connected project folders keep Markdown canonical and add optional `davenport-manifest.json`, `knowledge/knowledge-index.json`, and `training/approved-examples.jsonl` sidecars. States are metadata and do not force files to move.
+
 **Privacy scope** is declared before generation and recorded per revision:
 
 - **Local-only** (default) — cloud models are blocked outright.

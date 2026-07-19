@@ -315,6 +315,48 @@ test.describe("Writer release contract", () => {
     await expect(page.getByText(/OPT releases restrict commercial use/)).toBeVisible();
   });
 
+  test("imports a production guide as approved Davenport knowledge", async ({ page }) => {
+    await page.getByRole("button", { name: "Tools", exact: true }).click();
+    await page.getByRole("button", { name: "Knowledge & training…" }).click();
+    await page.locator("#knowledge-file-input").setInputFiles({
+      name: "Company Man Guide.md",
+      mimeType: "text/markdown",
+      buffer: Buffer.from("# Company Man Voice\n\nTerse dialogue. Corporate vocabulary."),
+    });
+    await page.locator("#ki-role").selectOption("style");
+    await page.getByRole("button", { name: "Import knowledge" }).click();
+    await expect(page.locator("#doc-title")).toHaveValue("Company Man Guide");
+    await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+    const imported = await page.evaluate(() => {
+      const p = JSON.parse(localStorage.getItem("writer.project.v1"));
+      return p.docs.find((doc) => doc.name === "Company Man Guide");
+    });
+    expect(imported.role).toBe("style");
+    expect(imported.folder).toBe("lore");
+    expect(imported.state).toBe("APPROVED");
+  });
+
+  test("training corpus exports only explicitly approved manuscript work", async ({ page }) => {
+    await page.getByRole("button", { name: "Tools", exact: true }).click();
+    await page.getByRole("button", { name: "Knowledge & training…" }).click();
+    await page.locator('select[data-doc-state]').first().selectOption("APPROVED");
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Export approved training corpus" }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/approved-training\.jsonl$/);
+  });
+
+  test("long lore retrieval selects relevant passages instead of the whole bible", async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const filler = Array.from({ length: 80 }, (_, i) => `Section ${i}\n\nUnrelated accounting material for department ${i}.`).join("\n\n");
+      const lore = `${filler}\n\n# Orphan Engine\n\nThe Orphan engine requires a cobalt ignition key and produces violet exhaust.`;
+      return retrieveRelevantPassages(lore, "Describe the Orphan engine ignition and exhaust", 500);
+    });
+    expect(result.retrieved).toBe(true);
+    expect(result.content).toContain("cobalt ignition key");
+    expect(result.content.length).toBeLessThan(800);
+  });
+
   test("fiction writing tools use the same preflight safety contract", async ({ page }) => {
     const editor = page.locator("#editor");
     await editor.selectText();
