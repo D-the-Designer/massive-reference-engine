@@ -102,6 +102,23 @@ AI request: operation, time, provider/model, destination, privacy scope, excerpt
 word count, and context-item names. API keys and full prompts are not copied
 into receipts.
 
+## Davenport knowledge compatibility
+
+Writer includes a shared manifest schema and validator for production bibles,
+series guides, lore indexes, manuscripts, and style references. Davenport file
+state and story canon status are deliberately stored as separate fields.
+
+Validate an external knowledge repository with:
+
+```bash
+npm run validate:knowledge -- /absolute/path/to/davenport-knowledge-manifest.json
+```
+
+The schema lives at
+`schemas/davenport-knowledge-manifest.schema.json`. The full authoring contract
+and manifest can live beside the source corpus so Writer never becomes the
+authority for canon.
+
 ## Export & Davenport compatibility
 
 Export produces a **named copy** — Markdown, plain text, or HTML (the initial rich format) — into `exports/` when a folder is connected, otherwise as a download. It never converts or replaces the source.

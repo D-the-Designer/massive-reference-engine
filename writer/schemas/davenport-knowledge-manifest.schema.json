@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://davenport.local/schemas/davenport-knowledge-manifest.schema.json",
+  "title": "Davenport Knowledge Manifest",
+  "type": "object",
+  "required": ["schema", "project", "records"],
+  "properties": {
+    "schema": { "const": "davenport.knowledge.manifest.v1" },
+    "project": { "type": "string", "minLength": 1 },
+    "generated": { "type": "string" },
+    "source_of_truth": { "type": "string" },
+    "records": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/record" }
+    },
+    "planned_records": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/plannedRecord" }
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "plannedRecord": {
+      "type": "object",
+      "required": ["source_id", "title", "role", "state", "canon_status", "ai_policy"],
+      "properties": {
+        "source_id": { "type": "string", "pattern": "^SRC-[0-9]{4,}$" },
+        "title": { "type": "string", "minLength": 1 },
+        "role": { "enum": ["lore", "style", "source", "manuscript", "outline", "decision-log", "contradiction-ledger"] },
+        "state": { "enum": ["RAW", "WORKING", "REVIEW", "APPROVED", "FINAL", "ARCHIVED"] },
+        "canon_status": { "enum": ["canon", "working canon", "provisional", "alternate", "deprecated", "influence only", "range", "in-universe claim", "mixed"] },
+        "ai_policy": { "enum": ["retrieval", "training-approved", "reference-only", "blocked"] }
+      },
+      "additionalProperties": true
+    },
+    "record": {
+      "allOf": [
+        { "$ref": "#/$defs/plannedRecord" },
+        {
+          "type": "object",
+          "required": ["path", "source_family", "authority", "scope", "retrieval_keys", "provenance"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "source_family": { "type": "string", "minLength": 1 },
+            "authority": { "enum": ["creator-authored", "creator-reviewed synthesis", "raw archive", "AI synthesis", "external reference", "repository audit"] },
+            "scope": { "type": "array", "items": { "type": "string" } },
+            "retrieval_keys": { "type": "array", "items": { "type": "string" } },
+            "provenance": { "type": "string", "minLength": 1 },
+            "related_sections": { "type": "array", "items": { "type": "string" } },
+            "related_source_ids": { "type": "array", "items": { "type": "string", "pattern": "^SRC-[0-9]{4,}$" } },
+            "related_contradiction_ids": { "type": "array", "items": { "type": "string" } },
+            "supersedes": { "type": "array", "items": { "type": "string" } },
+            "notes": { "type": "string" }
+          }
+        }
+      ]
+    }
+  }
+}
