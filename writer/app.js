@@ -1,5 +1,5 @@
 /* ════════════════════════════════════════════════════════════════
-   Dockyard Scribe 0.1 — local-first writing app with modular AI assistance.
+   Writer 0.1 — local-first writing app with modular AI assistance.
 
    Principles enforced in code (see UX spec):
    - Writing stays primary; AI is a command surface.
@@ -178,7 +178,7 @@ function loadProject() {
       const p = JSON.parse(raw);
       if (p && Array.isArray(p.docs) && p.docs.length) return p;
     }
-  } catch (e) { console.warn("Dockyard Scribe: could not load saved project", e); }
+  } catch (e) { console.warn("Writer: could not load saved project", e); }
   return defaultProject();
 }
 
@@ -190,7 +190,7 @@ function writeRecoverySnapshot(reason = "autosave") {
     const el = $("#status-recovery");
     if (el) el.textContent = "Recovery " + new Date(snapshot.savedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   } catch (e) {
-    console.warn("Dockyard Scribe: recovery snapshot failed", e);
+    console.warn("Writer: recovery snapshot failed", e);
   }
 }
 
@@ -377,7 +377,7 @@ function wordTableMarkdown(table, links, numberFormats) {
 
 async function docxToMarkdown(file) {
   if (!/\.docx$/i.test(file.name)) throw new Error("Choose a Word .docx file.");
-  if (file.size > 50 * 1024 * 1024) throw new Error("That Word file is larger than Dockyard Scribe's 50 MB import limit.");
+  if (file.size > 50 * 1024 * 1024) throw new Error("That Word file is larger than Writer's 50 MB import limit.");
   const bytes = await file.arrayBuffer();
   const [documentBytes, relBytes, numberingBytes] = await Promise.all([
     unzipEntry(bytes, "word/document.xml"),
@@ -494,7 +494,7 @@ function rtfToMarkdown(source) {
 }
 
 async function readImportFile(file) {
-  if (file.size > 50 * 1024 * 1024) throw new Error("That file is larger than Dockyard Scribe's 50 MB import limit.");
+  if (file.size > 50 * 1024 * 1024) throw new Error("That file is larger than Writer's 50 MB import limit.");
   const extension = (file.name.match(/\.([^.]+)$/)?.[1] || "").toLowerCase();
   if (extension === "docx") return docxToMarkdown(file);
   if (extension === "rtf") return rtfToMarkdown(await file.text());
@@ -507,7 +507,7 @@ async function importDocument(file, options = {}) {
     const content = await readImportFile(file);
     const now = Date.now();
     const sourceName = file.name.replace(/\.(docx|txt|rtf|md|markdown)$/i, "").trim() || "Imported document";
-    const requestedName = options.keepSourceName ? sourceName : `${sourceName} — Dockyard Scribe Copy`;
+    const requestedName = options.keepSourceName ? sourceName : `${sourceName} — Writer Copy`;
     let name = requestedName;
     let copyNumber = 2;
     while (project.docs.some((existing) => existing.name.toLocaleLowerCase() === name.toLocaleLowerCase())) {
@@ -522,7 +522,7 @@ async function importDocument(file, options = {}) {
     };
     project.docs.push(doc);
     setActiveDoc(doc.id);
-    toast(`Opened “${file.name}” as “${name}”. This is a Dockyard Scribe copy; the original file will never be overwritten.`, 6200);
+    toast(`Opened “${file.name}” as “${name}”. This is a Writer copy; the original file will never be overwritten.`, 6200);
   } catch (error) {
     toast("Could not open document: " + error.message, 5200);
   }
@@ -800,7 +800,7 @@ const AIHordeProvider = {
       headers: {
         "content-type": "application/json",
         apikey: hordeKey || "0000000000",
-        "Client-Agent": "Dockyard Scribe:0.1:https://github.com/D-the-Designer/massive-reference-engine",
+        "Client-Agent": "Writer:0.1:https://github.com/D-the-Designer/massive-reference-engine",
       },
       body: JSON.stringify({
         prompt,
@@ -901,7 +901,7 @@ function byoProvider(config) {
     id: config.id,
     name: config.name,
     kind: "cloud",
-    note: `Bring your own API connection to ${config.endpoint}. Requests leave this device. Dockyard Scribe does not include the API key in projects, exports, receipts, or prompts.`,
+    note: `Bring your own API connection to ${config.endpoint}. Requests leave this device. Writer does not include the API key in projects, exports, receipts, or prompts.`,
     models: () => [{ id: config.model, label: config.model, provider: config.id }],
     async call({ system, messages }) {
       const apiKey = byoKeys[config.id];
@@ -1131,7 +1131,7 @@ function beginOperation(kind, subtype) {
   } else if (kind === "describe") {
     instruction = "Enrich this passage with specific sensory detail across sight, sound, smell, touch, and taste where relevant. Avoid purple prose and preserve POV, tense, facts, and pacing. Return the full revised passage.";
   } else if (kind === "brainstorm") {
-    const topic = window.prompt("What should Dockyard Scribe brainstorm?", "Plot turns, complications, or character choices");
+    const topic = window.prompt("What should Writer brainstorm?", "Plot turns, complications, or character choices");
     if (topic === null) return;
     text = ta.value.slice(Math.max(0, selStart - 2000), selStart);
     selEnd = selStart;
@@ -1183,7 +1183,7 @@ function showPreflight() {
   const def = OP_DEFS[op.kind];
   const card = openModal(`
     <h2 class="modal-title">${def.label} — review before submission</h2>
-    <p class="modal-sub">Dockyard Scribe shows the operation, model, context, and privacy scope before anything is sent. Nothing changes your text until you accept a preview.</p>
+    <p class="modal-sub">Writer shows the operation, model, context, and privacy scope before anything is sent. Nothing changes your text until you accept a preview.</p>
     ${op.kind === "continue"
       ? `<div class="field"><span class="field-label">Text before cursor (sent as excerpt)</span><div class="excerpt">${esc(op.text.slice(-600) || "(document is empty)")}</div></div>`
       : `<div class="field"><span class="field-label">Selected text (${op.text.trim().split(/\s+/).filter(Boolean).length} words)</span><div class="excerpt">${esc(op.text)}</div></div>`}
@@ -1258,7 +1258,7 @@ function buildRequest(op) {
     // is eligible, and long documents are reduced by retrieval below.
     ctx = ctx.filter((c) => c.doc && ["lore", "style", "source"].includes(c.doc.role));
   }
-  const system = "You are a writing assistant inside Dockyard Scribe, a local-first writing app. Follow the instruction exactly. Return only the resulting prose — no preamble, no quotation marks around the result, no commentary.";
+  const system = "You are a writing assistant inside Writer, a local-first writing app. Follow the instruction exactly. Return only the resulting prose — no preamble, no quotation marks around the result, no commentary.";
   let user = "";
   const contextNames = [];
   const query = `${op.instruction}\n${op.text}`;
@@ -1483,7 +1483,7 @@ async function sendChat(text) {
   try {
     flushEditor();
     const ctx = selectedContextItems();
-    const system = "You are a writing assistant in the sidecar of Dockyard Scribe, a local-first writing app. Be concrete and concise. Drafted prose you produce is a proposal; the writer decides whether to insert it.";
+    const system = "You are a writing assistant in the sidecar of Writer, a local-first writing app. Be concrete and concise. Drafted prose you produce is a proposal; the writer decides whether to insert it.";
     let preamble = "";
     for (const c of ctx) preamble += `[Context — ${c.label}]\n${c.content.trim()}\n\n`;
     const history = project.chat.slice(-8).map((m) => ({ role: m.role === "user" ? "user" : "assistant", content: m.text }));
@@ -1560,7 +1560,7 @@ hr{border:0;border-top:1px solid #ccc;width:40%;margin:2em auto}
 </style></head><body>
 <h1>${esc(doc.name)}</h1>
 ${renderMarkdown(doc.content)}
-<hr><p style="font-size:12px;color:#888">Exported copy from Dockyard Scribe · ${esc(new Date().toLocaleString())} · the source document is unchanged.</p>
+<hr><p style="font-size:12px;color:#888">Exported copy from Writer · ${esc(new Date().toLocaleString())} · the source document is unchanged.</p>
 </body></html>`;
 }
 
@@ -1603,7 +1603,7 @@ async function connectFolder() {
     let hasExisting = false;
     try { await handle.getFileHandle("writer-project.json"); hasExisting = true; } catch (_) { /* new folder */ }
     dirHandle = handle;
-    if (hasExisting && window.confirm("This folder already contains a Dockyard Scribe project. Load it (replacing the in-browser project)?")) {
+    if (hasExisting && window.confirm("This folder already contains a Writer project. Load it (replacing the in-browser project)?")) {
       await fsLoadAll();
     } else {
       await fsSyncAll();
@@ -1638,7 +1638,7 @@ async function fsSyncAll() {
     const knowledgeDir = await dirHandle.getDirectoryHandle("knowledge", { create: true });
     await fsWriteFile(knowledgeDir, "knowledge-index.json", JSON.stringify({ schema: "davenport.writer.knowledge.v1", records: knowledgeIndex() }, null, 2));
     const meta = {
-      writer: "0.1", product: "Dockyard Scribe", name: project.name,
+      writer: "0.1", product: "Writer", name: project.name,
       note: "Optional metadata. The Markdown files are canonical; this file is never required to open them. No secrets are stored here.",
       docs: project.docs.map((d) => ({ id: d.id, folder: d.folder, name: d.name, file: slug(d.name) + ".md", role: d.role, state: d.state, tags: d.tags || [], importedFrom: d.importedFrom || null, created: d.created, modified: d.modified })),
       activeDocId: project.activeDocId,
@@ -1867,7 +1867,7 @@ function showProviders() {
       <span class="muted" id="pr-kobold-out">${koboldModels ? "Found: " + esc(koboldModels.join(", ")) : ""}</span>
     </div>
     <div class="model-group"><div class="model-group-head">AI Horde (free community cloud)</div>
-      <div class="scope-banner cloud"><b>Processed by volunteer-operated workers.</b> Dockyard Scribe sends only the active excerpt and the relevant lore excerpts you approve. Do not send private, identifying, or commercially sensitive material.</div>
+      <div class="scope-banner cloud"><b>Processed by volunteer-operated workers.</b> Writer sends only the active excerpt and the relevant lore excerpts you approve. Do not send private, identifying, or commercially sensitive material.</div>
       <div class="field"><label class="field-label" for="pr-horde-key">AI Horde API key <span class="muted">(optional)</span></label>
         <input type="password" id="pr-horde-key" placeholder="${hordeKey && hordeKey !== "0000000000" ? "•••• registered key set" : "Leave blank for anonymous access"}"></div>
       <div class="field"><label class="field-label" for="pr-horde-max">Maximum new tokens</label>
@@ -1988,7 +1988,7 @@ function showProviders() {
 function showRouting() {
   const card = openModal(`
     <h2 class="modal-title">Model routing suggestions</h2>
-    <p class="modal-sub">Suggested starting routes. Dockyard Scribe can suggest a route but never hides or auto-switches it — you always pick the model.</p>
+    <p class="modal-sub">Suggested starting routes. Writer can suggest a route but never hides or auto-switches it — you always pick the model.</p>
     <table class="routing">
       <tr><th>Task</th><th>Suggested route</th><th>Reason</th></tr>
       <tr><td>Private notes, summaries, outlines</td><td>Local Qwen / Ollama</td><td>Private and inexpensive.</td></tr>
@@ -2009,14 +2009,14 @@ function showFictionModels() {
       <p class="muted">${esc(model.note)}</p>
       <p class="muted">Download: ${esc(model.size)} · License: ${esc(model.license)}</p>
       <div class="modal-actions" style="justify-content:flex-start">
-        ${installedId ? `<button class="primary-btn" data-fiction-use="${esc(installedId)}">Use in Dockyard Scribe</button>` : ""}
+        ${installedId ? `<button class="primary-btn" data-fiction-use="${esc(installedId)}">Use in Writer</button>` : ""}
         <a class="secondary-btn" href="${esc(model.url)}" target="_blank" rel="noopener">Model page</a>
       </div>
     </div>`;
   }).join("");
   const card = openModal(`
     <h2 class="modal-title">Kobold fiction model catalog</h2>
-    <p class="modal-sub">Curated local models for fiction. Adult models are clearly labeled. Dockyard Scribe never downloads a model from this screen without your action.</p>
+    <p class="modal-sub">Curated local models for fiction. Adult models are clearly labeled. Writer never downloads a model from this screen without your action.</p>
     <div class="scope-banner local"><b>Classic Colab lineage:</b> Nerys (novel/adventure), Janeway and Picard (novels), Skein and Adventure (text adventures), Erebus/Shinen/Lit (adult fiction), and Nerybus (Nerys–Erebus blend). Some older OPT releases restrict commercial use, so they are references rather than default recommendations.</div>
     ${rows}
     <div class="modal-actions">
@@ -2087,7 +2087,7 @@ function showKnowledgeImport(file) {
   pendingKnowledgeFile = file;
   const card = openModal(`
     <h2 class="modal-title">Import project knowledge</h2>
-    <p class="modal-sub">${esc(file.name)} will be copied into Dockyard Scribe as a Markdown knowledge document. The original remains unchanged.</p>
+    <p class="modal-sub">${esc(file.name)} will be copied into Writer as a Markdown knowledge document. The original remains unchanged.</p>
     <div class="field"><label class="field-label" for="ki-role">Knowledge role</label>
       <select id="ki-role">${Object.entries(KNOWLEDGE_ROLES).map(([id, role]) => `<option value="${id}">${esc(role.label)}</option>`).join("")}</select></div>
     <div class="field"><label class="field-label" for="ki-state">Davenport state</label>
@@ -2137,10 +2137,10 @@ function showKnowledgeTraining() {
 
 function showAbout() {
   const card = openModal(`
-    <h2 class="modal-title">Dockyard Scribe 0.1</h2>
+    <h2 class="modal-title">Writer 0.1</h2>
     <p class="modal-sub">A reskinnable, local-first writing app with modular AI assistance.</p>
     <div class="prose" style="font-size:14px">
-      <p><b>Dockyard Scribe owns the editing experience. You own the source files. Models propose text. Exports deliver copies.</b></p>
+      <p><b>Writer owns the editing experience. You own the source files. Models propose text. Exports deliver copies.</b></p>
       <ul>
         <li>Every AI transformation is previewed before it changes text; accepted changes create revision records with full provenance.</li>
         <li>Projects are plain Markdown folders — no database or vendor account is ever the only copy.</li>

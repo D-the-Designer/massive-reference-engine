@@ -1,8 +1,8 @@
-# Dockyard Scribe 0.1
+# Writer 0.1
 
-A reskinnable, **local-first writing application** with modular AI assistance — implementing the *Dockyard Scribe App UX Specification 0.1* as a dependency-free local web app.
+A reskinnable, **local-first writing application** with modular AI assistance — implementing the *Writer App UX Specification 0.1* as a dependency-free local web app.
 
-> Dockyard Scribe owns the editing experience.
+> Writer owns the editing experience.
 > The user owns the source files.
 > Models propose text.
 > Exports deliver copies.
@@ -24,9 +24,9 @@ The browser suite exercises desktop and phone-sized Chromium, including source
 safety, persistence and recovery, AI acceptance and rejection paths, cloud
 blocking, unavailable local providers, privacy receipts, revisions, themes,
 responsive behavior, and Markdown/TXT/HTML copy exports. GitHub Actions runs
-the same suite for Dockyard Scribe pull requests and changes to `main`.
+the same suite for Writer pull requests and changes to `main`.
 
-The project is persisted in browser storage automatically. **File ▸ Open document…** opens `.docx`, `.txt`, `.rtf`, and `.md` files as newly named `— Dockyard Scribe Copy` documents; saving never overwrites the original file. Reopening the same source creates a numbered copy rather than colliding with earlier work. Word imports preserve text, headings, basic character formatting, lists, links, and tables as Markdown. RTF imports preserve text and common bold, italic, underline, paragraph, tab, and Unicode formatting. Markdown remains plain portable Markdown, suitable for Davenport Notes or any other Markdown editor. For real portable project files, use **File ▸ Connect project folder…** (Chromium-based browsers): Dockyard Scribe then reads/writes an ordinary folder you can inspect, back up, and open with any tool:
+The project is persisted in browser storage automatically. **File ▸ Open document…** opens `.docx`, `.txt`, `.rtf`, and `.md` files as newly named `— Writer Copy` documents; saving never overwrites the original file. Reopening the same source creates a numbered copy rather than colliding with earlier work. Word imports preserve text, headings, basic character formatting, lists, links, and tables as Markdown. RTF imports preserve text and common bold, italic, underline, paragraph, tab, and Unicode formatting. Markdown remains plain portable Markdown, suitable for Davenport Notes or any other Markdown editor. For real portable project files, use **File ▸ Connect project folder…** (Chromium-based browsers): Writer then reads/writes an ordinary folder you can inspect, back up, and open with any tool:
 
 ```
 My Project/
@@ -41,7 +41,7 @@ My Project/
 
 Secrets (cloud API keys) are **never** written into the project folder or `writer-project.json`.
 
-Dockyard Scribe keeps a rolling browser-local recovery snapshot on save, every 30
+Writer keeps a rolling browser-local recovery snapshot on save, every 30
 seconds, and before the page unloads. This is a recovery aid, not a replacement
 for connecting a real project folder or downloading backups.
 
@@ -57,7 +57,7 @@ for connecting a real project folder or downloading backups.
 
 **Rewrite ▾ (with subtypes) · Expand · Continue · Shorten** — every command follows the same contract:
 
-Dockyard Scribe also includes fiction-focused **Guided Write**, **Describe**, **Brainstorm**, **First Draft**, and **Feedback** commands. Outline, Lore & style, Sources, and manuscript context together act as the project Story Bible; every included item remains visible in pre-flight.
+Writer also includes fiction-focused **Guided Write**, **Describe**, **Brainstorm**, **First Draft**, and **Feedback** commands. Outline, Lore & style, Sources, and manuscript context together act as the project Story Bible; every included item remains visible in pre-flight.
 
 1. A **pre-flight dialog** shows the operation, editable instruction, model, the exact context items included (with word counts), and the privacy scope — before anything is sent.
 2. The result opens in a **diff preview**. Nothing has changed yet.
@@ -74,7 +74,7 @@ Models are replaceable adapters, chosen per task and never hidden:
 | --- | --- | --- |
 | **Preview (no AI)** | stays local | Built-in canned transforms so the whole workflow is testable with no model connected. Deterministic, clearly labeled, not intelligent. |
 | **Ollama** | stays local | Point at a local Ollama server (Tools ▸ Providers). “Detect installed models” lists what's pulled. If the browser can't reach it from a `file://` page, start Ollama with `OLLAMA_ORIGINS='*' ollama serve`. |
-| **KoboldAI / KoboldCpp** | stays local | Reuses the writing model loaded by a local Kobold server, normally at `http://localhost:5001`. Dockyard Scribe can detect its model and exposes temperature, repetition penalty, and output length. |
+| **KoboldAI / KoboldCpp** | stays local | Reuses the writing model loaded by a local Kobold server, normally at `http://localhost:5001`. Writer can detect its model and exposes temperature, repetition penalty, and output length. |
 | **Gemini API** | leaves device | Limited free tier through Google AI Studio. Free-tier content may be used to improve Google products. |
 | **Groq** | leaves device | Published free-plan limits with fast hosted open-model inference, including GPT-OSS. |
 | **OpenRouter** | leaves device | `openrouter/free` routes among currently available free models; model choice and availability can vary. |
@@ -82,7 +82,7 @@ Models are replaceable adapters, chosen per task and never hidden:
 | **Bring your own API** | leaves device | Add multiple OpenAI-compatible chat-completions endpoints and model names. |
 
 AI Horde works immediately with its anonymous key. A registered AI Horde key
-improves queue priority through Kudos. Dockyard Scribe can load the currently available
+improves queue priority through Kudos. Writer can load the currently available
 text models and their reported wait estimates, or use **Fastest available text
 model**. Because volunteer workers receive the prompt, use only selected
 passages and retrieved lore excerpts; do not send identifying or commercially
@@ -110,7 +110,7 @@ Connected project folders keep Markdown canonical and add optional `davenport-ma
 - **Hybrid** — cloud allowed, but each request needs a per-request approval.
 - **Cloud-enabled** — cloud allowed after a one-time consent.
 
-Tools ▸ Model routing suggestions shows suggested starting routes; they are defaults, not claims of superiority, and Dockyard Scribe never auto-switches models.
+Tools ▸ Model routing suggestions shows suggested starting routes; they are defaults, not claims of superiority, and Writer never auto-switches models.
 
 Tools ▸ Privacy receipts shows a local, append-only summary of every completed
 AI request: operation, time, provider/model, destination, privacy scope, excerpt
@@ -119,7 +119,7 @@ into receipts.
 
 ## Davenport knowledge compatibility
 
-Dockyard Scribe includes a shared manifest schema and validator for production bibles,
+Writer includes a shared manifest schema and validator for production bibles,
 series guides, lore indexes, manuscripts, and style references. Davenport file
 state and story canon status are deliberately stored as separate fields.
 
@@ -131,14 +131,14 @@ npm run validate:knowledge -- /absolute/path/to/davenport-knowledge-manifest.jso
 
 The schema lives at
 `schemas/davenport-knowledge-manifest.schema.json`. The full authoring contract
-and manifest can live beside the source corpus so Dockyard Scribe never becomes the
+and manifest can live beside the source corpus so Writer never becomes the
 authority for canon.
 
 ## Export & Davenport compatibility
 
 Export produces a **named copy** — Markdown, plain text, or HTML (the initial rich format) — into `exports/` when a folder is connected, otherwise as a download. It never converts or replaces the source.
 
-Dockyard Scribe is Davenport-**compatible**, not Davenport-branded: authored files stay portable; AI never silently renames, moves, overwrites, or deletes canonical sources; AI output is derived/revision data separated from originals; cloud context is explicitly selected and declared; and Dockyard Scribe is never the only path to open, copy, back up, or restore the work (the files are plain Markdown on disk).
+Writer is Davenport-**compatible**, not Davenport-branded: authored files stay portable; AI never silently renames, moves, overwrites, or deletes canonical sources; AI output is derived/revision data separated from originals; cloud context is explicitly selected and declared; and Writer is never the only path to open, copy, back up, or restore the work (the files are plain Markdown on disk).
 
 ## First-release boundary (spec §11) — status
 
@@ -148,7 +148,7 @@ Deliberately not included yet (per spec): DOCX export, PDF import-export, Founta
 
 ## Release and security
 
-Dockyard Scribe is currently version 0.1.0. Changes are documented in
+Writer is currently version 0.1.0. Changes are documented in
 [`CHANGELOG.md`](../CHANGELOG.md); credential-handling guidance is in
 [`SECURITY.md`](../SECURITY.md). Browser storage is not an OS keychain: prefer
 session-only cloud keys, especially on shared machines.

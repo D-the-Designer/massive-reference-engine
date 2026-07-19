@@ -13,7 +13,7 @@
 - Added a controlled Company Man house voice derived from Chapters 1–5, with
   explicit repetition limits and a trust-the-image editorial rule.
 - Existing DOCX, TXT, RTF, and Markdown files now open under an explicit
-  `— Dockyard Scribe Copy` name, with numbered collision handling and visible
+  `— Writer Copy` name, with numbered collision handling and visible
   source-protection status.
 - Added ten built-in Rewrite tones for fiction: Warm, Dry, Playful, Tense,
   Ominous, Gritty, Intimate, Sensual, Romantic, and Cinematic.

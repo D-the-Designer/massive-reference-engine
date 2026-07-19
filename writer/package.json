@@ -1,8 +1,8 @@
 {
-  "name": "dockyard-scribe-local-first",
+  "name": "writer-local-first",
   "version": "0.1.0",
   "private": true,
-  "description": "Dockyard Scribe local-first fiction studio with explicit AI assistance",
+  "description": "Writer local-first fiction studio with explicit AI assistance",
   "scripts": {
     "build": "node scripts/build-site.mjs",
     "serve": "python3 -m http.server 4173 --bind 127.0.0.1",

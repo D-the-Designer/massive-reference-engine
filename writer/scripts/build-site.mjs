@@ -13,7 +13,7 @@ for (const name of ["index.html", "app.js", "styles.css"]) {
   await cp(new URL(`../${name}`, import.meta.url), new URL(`../dist/assets/${name}`, import.meta.url));
 }
 await mkdir(new URL("../dist/assets/assets/", import.meta.url), { recursive: true });
-for (const name of ["dockyard-scribe-logo.png", "dockyard-scribe-social.jpg"]) {
+for (const name of ["writer-logo.png", "writer-social.jpg"]) {
   await cp(new URL(`../assets/${name}`, import.meta.url), new URL(`../dist/assets/assets/${name}`, import.meta.url));
 }
 
