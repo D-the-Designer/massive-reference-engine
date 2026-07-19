@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Replaced the tall floating Rewrite dropdown with an expanding toolbar tray
+  that pushes the manuscript down instead of covering the text.
 - Existing DOCX, TXT, RTF, and Markdown files now open under an explicit
   `— Writer Copy` name, with numbered collision handling and visible
   source-protection status.

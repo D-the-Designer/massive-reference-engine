@@ -115,6 +115,18 @@ test.describe("Writer release contract", () => {
     await page.getByRole("button", { name: "Cancel", exact: true }).click();
   });
 
+  test("Rewrite opens as a toolbar tray that does not cover the manuscript", async ({ page }) => {
+    const editor = page.locator("#editor");
+    const before = await editor.boundingBox();
+    await page.getByRole("button", { name: "Rewrite ▾" }).click();
+    const tray = page.locator(".rewrite-menu");
+    const after = await editor.boundingBox();
+    const trayBox = await tray.boundingBox();
+    expect(trayBox).not.toBeNull();
+    expect(after.y).toBeGreaterThan(before.y);
+    expect(trayBox.y + trayBox.height).toBeLessThanOrEqual(after.y + 1);
+  });
+
   test("rewrite intensity controls preserve events and boundaries", async ({ page }) => {
     const editor = page.locator("#editor");
     const before = await editor.inputValue();

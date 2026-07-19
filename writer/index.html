@@ -148,15 +148,17 @@
       <button class="tb tb-ai menu-title" title="Rewrite selected text">Rewrite ▾</button>
       <div class="menu-drop rewrite-menu">
         <div class="menu-section-label">Edit</div>
-        <button data-rewrite="default">Improve (preserve meaning)</button>
-        <button data-rewrite="clearer">Clearer</button>
-        <button data-rewrite="stronger">Stronger</button>
-        <button data-rewrite="literary">More literary</button>
-        <button data-rewrite="simpler">Simpler</button>
-        <button data-rewrite="dialogue">Dialogue pass</button>
-        <button data-rewrite="description">Description pass</button>
+        <div class="rewrite-grid edit-grid">
+          <button data-rewrite="default">Improve (preserve meaning)</button>
+          <button data-rewrite="clearer">Clearer</button>
+          <button data-rewrite="stronger">Stronger</button>
+          <button data-rewrite="literary">More literary</button>
+          <button data-rewrite="simpler">Simpler</button>
+          <button data-rewrite="dialogue">Dialogue pass</button>
+          <button data-rewrite="description">Description pass</button>
+        </div>
         <div class="menu-section-label">Tone</div>
-        <div class="tone-grid">
+        <div class="rewrite-grid tone-grid">
           <button data-rewrite="tone-warm">Warm</button>
           <button data-rewrite="tone-dry">Dry</button>
           <button data-rewrite="tone-playful">Playful</button>
@@ -174,12 +176,14 @@
           <button data-rewrite="tone-less-violent">Less violent</button>
         </div>
         <div class="menu-section-label">Voice</div>
-        <button data-rewrite="voice-gonzo">Hunter S. Thompson / ’80s Rolling Stone</button>
-        <button data-rewrite="voice-film-novelization">1970s film novelization</button>
-        <button data-rewrite="voice-pulp">Pulp novel</button>
-        <button data-rewrite="voice-val-wanderer">Val in <i>Wanderer</i> — dry engineer</button>
-        <button data-rewrite="tone">Custom tone…</button>
-        <button data-rewrite="custom">Custom instruction…</button>
+        <div class="rewrite-grid voice-grid">
+          <button data-rewrite="voice-gonzo">Hunter S. Thompson / ’80s Rolling Stone</button>
+          <button data-rewrite="voice-film-novelization">1970s film novelization</button>
+          <button data-rewrite="voice-pulp">Pulp novel</button>
+          <button data-rewrite="voice-val-wanderer">Val in <i>Wanderer</i> — dry engineer</button>
+          <button data-rewrite="tone">Custom tone…</button>
+          <button data-rewrite="custom">Custom instruction…</button>
+        </div>
       </div>
     </div>
     <button class="tb tb-ai" data-ai="expand" title="Expand selected passage">Expand</button>
