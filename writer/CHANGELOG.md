@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Existing DOCX, TXT, RTF, and Markdown files now open under an explicit
+  `— Writer Copy` name, with numbered collision handling and visible
+  source-protection status.
 - Added ten built-in Rewrite tones for fiction: Warm, Dry, Playful, Tense,
   Ominous, Gritty, Intimate, Sensual, Romantic, and Cinematic.
 - Added Rewrite intensity controls for Cleaner, Filthier, Harsher, More violent,

@@ -216,11 +216,13 @@ test.describe("Writer release contract", () => {
       buffer: docx,
     });
 
-    await expect(page.locator("#doc-title")).toHaveValue("My Novel");
+    await expect(page.locator("#doc-title")).toHaveValue("My Novel — Writer Copy");
     await expect(page.locator("#editor")).toHaveValue(/# Imported Chapter/);
     await expect(page.locator("#editor")).toHaveValue(/\*\*bold words\*\*/);
     await expect(page.locator("#editor")).toHaveValue(/\| Name \| Role \|/);
-    await expect(page.locator("#toast")).toContainText("original file was not changed");
+    await expect(page.locator("#toast")).toContainText("original file will never be overwritten");
+    await expect(page.locator("#doc-meta")).toContainText("working copy of My Novel.docx");
+    await expect(page.locator("#doc-meta")).toContainText("source protected");
   });
 
   for (const sample of [
@@ -234,11 +236,23 @@ test.describe("Writer release contract", () => {
         mimeType: sample.mimeType,
         buffer: Buffer.from(sample.source),
       });
-      await expect(page.locator("#doc-title")).toHaveValue(sample.name.replace(/\.[^.]+$/, ""));
+      await expect(page.locator("#doc-title")).toHaveValue(sample.name.replace(/\.[^.]+$/, "") + " — Writer Copy");
       await expect(page.locator("#editor")).toHaveValue(sample.expected);
-      await expect(page.locator("#toast")).toContainText("original file was not changed");
+      await expect(page.locator("#toast")).toContainText("original file will never be overwritten");
     });
   }
+
+  test("reopening a source creates a numbered Writer copy", async ({ page }) => {
+    const source = {
+      name: "Draft.md",
+      mimeType: "text/markdown",
+      buffer: Buffer.from("# Draft"),
+    };
+    await page.locator("#document-file-input").setInputFiles(source);
+    await expect(page.locator("#doc-title")).toHaveValue("Draft — Writer Copy");
+    await page.locator("#document-file-input").setInputFiles(source);
+    await expect(page.locator("#doc-title")).toHaveValue("Draft — Writer Copy 2");
+  });
 
   test("themes and focus mode remain usable", async ({ page }) => {
     await page.getByRole("button", { name: "View", exact: true }).click();

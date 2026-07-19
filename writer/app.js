@@ -495,7 +495,13 @@ async function importDocument(file, options = {}) {
   try {
     const content = await readImportFile(file);
     const now = Date.now();
-    const name = file.name.replace(/\.(docx|txt|rtf|md|markdown)$/i, "").trim() || "Imported document";
+    const sourceName = file.name.replace(/\.(docx|txt|rtf|md|markdown)$/i, "").trim() || "Imported document";
+    const requestedName = options.keepSourceName ? sourceName : `${sourceName} — Writer Copy`;
+    let name = requestedName;
+    let copyNumber = 2;
+    while (project.docs.some((existing) => existing.name.toLocaleLowerCase() === name.toLocaleLowerCase())) {
+      name = `${requestedName} ${copyNumber++}`;
+    }
     const folder = options.folder || "manuscript";
     const doc = {
       id: uid(), folder, name, content,
@@ -505,7 +511,7 @@ async function importDocument(file, options = {}) {
     };
     project.docs.push(doc);
     setActiveDoc(doc.id);
-    toast(`Opened “${file.name}” as an editable Writer document. The original file was not changed.`, 5200);
+    toast(`Opened “${file.name}” as “${name}”. This is a Writer copy; the original file will never be overwritten.`, 6200);
   } catch (error) {
     toast("Could not open document: " + error.message, 5200);
   }
@@ -1905,7 +1911,7 @@ function showKnowledgeImport(file) {
     const selectedFile = pendingKnowledgeFile;
     pendingKnowledgeFile = null;
     closeModal();
-    await importDocument(selectedFile, { folder: roleDef.folder, role, state });
+    await importDocument(selectedFile, { folder: roleDef.folder, role, state, keepSourceName: true });
   });
 }
 
@@ -1993,7 +1999,9 @@ function renderEditor() {
   ta.dataset.font = project.settings.font;
   ta.style.fontSize = project.settings.size + "px";
   $("#doc-title").value = doc.name;
-  $("#doc-meta").textContent = doc.folder + " · edited " + fmtTime(doc.modified);
+  $("#doc-meta").textContent = doc.folder
+    + (doc.importedFrom ? ` · working copy of ${doc.importedFrom} · source protected` : "")
+    + " · edited " + fmtTime(doc.modified);
   if (!$("#preview").hidden) $("#preview").innerHTML = renderMarkdown(doc.content);
   renderStatus();
 }
