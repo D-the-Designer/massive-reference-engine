@@ -165,6 +165,182 @@ function addDoc(folder) {
   toast(`Added “${doc.name}” to ${folder}.`);
 }
 
+/* ── Word (.docx) import — local, dependency-free, source unchanged ── */
+const WORD_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+const REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+const ZIP_EOCD = 0x06054b50;
+const ZIP_CENTRAL = 0x02014b50;
+const ZIP_LOCAL = 0x04034b50;
+
+function wordAttr(el, name) {
+  return el?.getAttributeNS(WORD_NS, name) || el?.getAttribute("w:" + name) || el?.getAttribute(name) || "";
+}
+
+function wordChildren(el, name) {
+  return Array.from(el?.children || []).filter((child) => child.localName === name);
+}
+
+function wordDesc(el, name) {
+  return Array.from(el?.getElementsByTagNameNS(WORD_NS, name) || []);
+}
+
+function escapeMarkdownText(text) {
+  return String(text || "").replace(/([\\`*_{}\[\]<>])/g, "\\$1");
+}
+
+async function unzipEntry(bytes, wantedName) {
+  const view = new DataView(bytes);
+  let eocd = -1;
+  for (let i = bytes.byteLength - 22; i >= Math.max(0, bytes.byteLength - 65557); i--) {
+    if (view.getUint32(i, true) === ZIP_EOCD) { eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error("This does not appear to be a valid .docx file.");
+  const count = view.getUint16(eocd + 10, true);
+  let offset = view.getUint32(eocd + 16, true);
+  const decoder = new TextDecoder();
+  for (let i = 0; i < count; i++) {
+    if (view.getUint32(offset, true) !== ZIP_CENTRAL) throw new Error("The Word file has an unsupported ZIP directory.");
+    const method = view.getUint16(offset + 10, true);
+    const compressedSize = view.getUint32(offset + 20, true);
+    const nameLength = view.getUint16(offset + 28, true);
+    const extraLength = view.getUint16(offset + 30, true);
+    const commentLength = view.getUint16(offset + 32, true);
+    const localOffset = view.getUint32(offset + 42, true);
+    const name = decoder.decode(new Uint8Array(bytes, offset + 46, nameLength));
+    if (name === wantedName) {
+      if (view.getUint32(localOffset, true) !== ZIP_LOCAL) throw new Error("The Word file contains an invalid entry.");
+      const localNameLength = view.getUint16(localOffset + 26, true);
+      const localExtraLength = view.getUint16(localOffset + 28, true);
+      const start = localOffset + 30 + localNameLength + localExtraLength;
+      const compressed = new Uint8Array(bytes.slice(start, start + compressedSize));
+      if (method === 0) return compressed;
+      if (method !== 8 || typeof DecompressionStream === "undefined") throw new Error("This browser cannot decompress this Word file.");
+      const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+      return new Uint8Array(await new Response(stream).arrayBuffer());
+    }
+    offset += 46 + nameLength + extraLength + commentLength;
+  }
+  return null;
+}
+
+function parseWordXml(bytes, label) {
+  if (!bytes) return null;
+  const xml = new DOMParser().parseFromString(new TextDecoder().decode(bytes), "application/xml");
+  if (xml.querySelector("parsererror")) throw new Error(`Word ${label} XML could not be read.`);
+  return xml;
+}
+
+function wordNumberFormats(numberingXml) {
+  const formats = new Map();
+  if (!numberingXml) return formats;
+  const abstract = new Map();
+  for (const node of wordDesc(numberingXml, "abstractNum")) {
+    const id = wordAttr(node, "abstractNumId");
+    const level = wordDesc(node, "lvl")[0];
+    abstract.set(id, wordAttr(wordDesc(level, "numFmt")[0], "val") || "decimal");
+  }
+  for (const node of wordDesc(numberingXml, "num")) {
+    const id = wordAttr(node, "numId");
+    const abstractId = wordAttr(wordDesc(node, "abstractNumId")[0], "val");
+    formats.set(id, abstract.get(abstractId) || "decimal");
+  }
+  return formats;
+}
+
+function wordRunMarkdown(run) {
+  let text = "";
+  for (const node of Array.from(run.childNodes || [])) {
+    if (node.localName === "t" || node.localName === "instrText") text += node.textContent || "";
+    else if (node.localName === "tab") text += "\t";
+    else if (node.localName === "br" || node.localName === "cr") text += "  \n";
+  }
+  text = escapeMarkdownText(text);
+  if (!text) return "";
+  const props = wordChildren(run, "rPr")[0];
+  if (wordChildren(props, "b").length) text = `**${text}**`;
+  if (wordChildren(props, "i").length) text = `*${text}*`;
+  if (wordChildren(props, "u").length) text = `<u>${text}</u>`;
+  return text;
+}
+
+function wordParagraphMarkdown(paragraph, links, numberFormats) {
+  let text = "";
+  for (const child of Array.from(paragraph.children || [])) {
+    if (child.localName === "r") text += wordRunMarkdown(child);
+    else if (child.localName === "hyperlink") {
+      const linked = wordChildren(child, "r").map(wordRunMarkdown).join("");
+      const target = links.get(child.getAttributeNS(REL_NS, "id") || child.getAttribute("r:id"));
+      text += target ? `[${linked}](${target})` : linked;
+    }
+  }
+  const props = wordChildren(paragraph, "pPr")[0];
+  const style = wordAttr(wordChildren(props, "pStyle")[0], "val").toLowerCase();
+  if (/^(title|heading1|heading 1)$/.test(style)) return "# " + text;
+  if (/^(subtitle|heading2|heading 2)$/.test(style)) return "## " + text;
+  if (/^(heading3|heading 3)$/.test(style)) return "### " + text;
+  if (/quote/.test(style)) return "> " + text;
+  const numPr = wordChildren(props, "numPr")[0];
+  if (numPr) {
+    const numId = wordAttr(wordChildren(numPr, "numId")[0], "val");
+    return (numberFormats.get(numId) === "bullet" ? "- " : "1. ") + text;
+  }
+  return text;
+}
+
+function wordTableMarkdown(table, links, numberFormats) {
+  const rows = wordChildren(table, "tr").map((row) =>
+    wordChildren(row, "tc").map((cell) =>
+      wordChildren(cell, "p").map((p) => wordParagraphMarkdown(p, links, numberFormats)).join("<br>").replace(/\|/g, "\\|")
+    )
+  ).filter((row) => row.length);
+  if (!rows.length) return "";
+  const width = Math.max(...rows.map((row) => row.length));
+  const normalized = rows.map((row) => Array.from({ length: width }, (_, i) => row[i] || ""));
+  return [
+    `| ${normalized[0].join(" | ")} |`,
+    `| ${normalized[0].map(() => "---").join(" | ")} |`,
+    ...normalized.slice(1).map((row) => `| ${row.join(" | ")} |`),
+  ].join("\n");
+}
+
+async function docxToMarkdown(file) {
+  if (!/\.docx$/i.test(file.name)) throw new Error("Choose a Word .docx file.");
+  if (file.size > 50 * 1024 * 1024) throw new Error("That Word file is larger than Writer's 50 MB import limit.");
+  const bytes = await file.arrayBuffer();
+  const [documentBytes, relBytes, numberingBytes] = await Promise.all([
+    unzipEntry(bytes, "word/document.xml"),
+    unzipEntry(bytes, "word/_rels/document.xml.rels"),
+    unzipEntry(bytes, "word/numbering.xml"),
+  ]);
+  if (!documentBytes) throw new Error("The file does not contain an editable Word document.");
+  const documentXml = parseWordXml(documentBytes, "document");
+  const relXml = parseWordXml(relBytes, "relationships");
+  const numberingXml = parseWordXml(numberingBytes, "numbering");
+  const links = new Map(Array.from(relXml?.getElementsByTagName("Relationship") || []).map((rel) => [rel.getAttribute("Id"), rel.getAttribute("Target")]));
+  const numberFormats = wordNumberFormats(numberingXml);
+  const body = wordDesc(documentXml, "body")[0];
+  const blocks = Array.from(body?.children || []).map((block) => {
+    if (block.localName === "p") return wordParagraphMarkdown(block, links, numberFormats);
+    if (block.localName === "tbl") return wordTableMarkdown(block, links, numberFormats);
+    return "";
+  });
+  return blocks.join("\n\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+async function importDocx(file) {
+  try {
+    const content = await docxToMarkdown(file);
+    const now = Date.now();
+    const name = file.name.replace(/\.docx$/i, "").trim() || "Imported Word document";
+    const doc = { id: uid(), folder: "manuscript", name, content, created: now, modified: now, importedFrom: file.name };
+    project.docs.push(doc);
+    setActiveDoc(doc.id);
+    toast(`Opened “${file.name}” as an editable Writer document. The original Word file was not changed.`, 5200);
+  } catch (error) {
+    toast("Could not open Word file: " + error.message, 5200);
+  }
+}
+
 /* write the textarea back into the active doc */
 function flushEditor() {
   const doc = activeDoc();
@@ -1478,6 +1654,7 @@ function renderAll() {
    ══════════════════════════════════════════════════════════════ */
 const ACTIONS = {
   "new-doc": () => addDoc("manuscript"),
+  "open-docx": () => $("#docx-file-input").click(),
   "connect-folder": connectFolder,
   "save-now": () => { flushEditor(); markDirty(); toast("Saved."); },
   "snapshot": takeSnapshot,
@@ -1514,6 +1691,12 @@ const ACTIONS = {
 function closeMenus() { $$(".menu.open").forEach((m) => m.classList.remove("open")); }
 
 function bindEvents() {
+  $("#docx-file-input").addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (file) await importDocx(file);
+  });
+
   // menus: click title to toggle, click elsewhere to close
   document.addEventListener("click", (e) => {
     const title = e.target.closest(".menu-title");

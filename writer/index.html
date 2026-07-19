@@ -24,6 +24,7 @@
         <div class="menu" data-menu="file"><button class="menu-title">File</button>
           <div class="menu-drop">
             <button data-action="new-doc">New document</button>
+            <button data-action="open-docx">Open Word document (.docx)…</button>
             <button data-action="connect-folder">Connect project folder…</button>
             <button data-action="save-now">Save now <span class="kbd">Ctrl+S</span></button>
             <button data-action="snapshot">Snapshot version</button>
@@ -248,6 +249,7 @@
 </div>
 
 <div id="toast" hidden></div>
+<input id="docx-file-input" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
 
 <script src="app.js"></script>
 </body>

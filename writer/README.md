@@ -26,7 +26,7 @@ blocking, unavailable local providers, privacy receipts, revisions, themes,
 responsive behavior, and Markdown/TXT/HTML copy exports. GitHub Actions runs
 the same suite for Writer pull requests and changes to `main`.
 
-The project is persisted in browser storage automatically. For real portable files, use **File ▸ Connect project folder…** (Chromium-based browsers): Writer then reads/writes an ordinary folder you can inspect, back up, and open with any tool:
+The project is persisted in browser storage automatically. **File ▸ Open Word document (.docx)…** imports Word text, headings, basic character formatting, lists, links, and tables into a new editable Writer document; the original Word file is never modified. For real portable project files, use **File ▸ Connect project folder…** (Chromium-based browsers): Writer then reads/writes an ordinary folder you can inspect, back up, and open with any tool:
 
 ```
 My Project/
@@ -102,7 +102,7 @@ Writer is Davenport-**compatible**, not Davenport-branded: authored files stay p
 
 Included and working: one-project editor (Markdown/TXT source), standard formatting and document structure, project panel (documents/outline/lore/sources), local model connection (Ollama) plus one cloud adapter behind explicit consent, chat + generate/insert + rewrite/expand/continue/shorten, diff preview and revision snapshots, Markdown/TXT export plus HTML as the initial rich export, theme tokens and collapsible panels.
 
-Deliberately not included yet (per spec): DOCX/PDF import-export, Fountain, Post delivery handoff, collaborative editing, automatic model routing, bulk Davenport ingestion, and an embedded database as primary storage.
+Deliberately not included yet (per spec): DOCX export, PDF import-export, Fountain, Post delivery handoff, collaborative editing, automatic model routing, bulk Davenport ingestion, and an embedded database as primary storage.
 
 ## Release and security
 

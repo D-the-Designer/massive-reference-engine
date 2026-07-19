@@ -1,5 +1,43 @@
 const { test, expect } = require("@playwright/test");
 
+function storedZip(entries) {
+  const files = [];
+  const central = [];
+  let offset = 0;
+  for (const [name, content] of Object.entries(entries)) {
+    const nameBytes = Buffer.from(name);
+    const data = Buffer.from(content);
+    const local = Buffer.alloc(30);
+    local.writeUInt32LE(0x04034b50, 0);
+    local.writeUInt16LE(20, 4);
+    local.writeUInt16LE(0, 8);
+    local.writeUInt32LE(data.length, 18);
+    local.writeUInt32LE(data.length, 22);
+    local.writeUInt16LE(nameBytes.length, 26);
+    files.push(local, nameBytes, data);
+
+    const header = Buffer.alloc(46);
+    header.writeUInt32LE(0x02014b50, 0);
+    header.writeUInt16LE(20, 4);
+    header.writeUInt16LE(20, 6);
+    header.writeUInt16LE(0, 10);
+    header.writeUInt32LE(data.length, 20);
+    header.writeUInt32LE(data.length, 24);
+    header.writeUInt16LE(nameBytes.length, 28);
+    header.writeUInt32LE(offset, 42);
+    central.push(header, nameBytes);
+    offset += local.length + nameBytes.length + data.length;
+  }
+  const centralBytes = Buffer.concat(central);
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(0x06054b50, 0);
+  eocd.writeUInt16LE(Object.keys(entries).length, 8);
+  eocd.writeUInt16LE(Object.keys(entries).length, 10);
+  eocd.writeUInt32LE(centralBytes.length, 12);
+  eocd.writeUInt32LE(offset, 16);
+  return Buffer.concat([...files, centralBytes, eocd]);
+}
+
 async function fresh(page) {
   await page.goto("/index.html");
   await page.evaluate(() => localStorage.clear());
@@ -105,6 +143,35 @@ test.describe("Writer release contract", () => {
     await page.getByRole("button", { name: "Restore “before” as new document" }).click();
     await expect(page.locator("#doc-title")).toHaveValue(/restored/i);
     await expect(page.getByRole("button", { name: "Revisions 1" })).toBeVisible();
+  });
+
+  test("opens a Word document as a new editable Writer document", async ({ page }) => {
+    const documentXml = `<?xml version="1.0" encoding="UTF-8"?>
+      <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+        <w:body>
+          <w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Imported Chapter</w:t></w:r></w:p>
+          <w:p><w:r><w:t>The opening has </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>bold words</w:t></w:r><w:r><w:t>.</w:t></w:r></w:p>
+          <w:tbl>
+            <w:tr><w:tc><w:p><w:r><w:t>Name</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>Role</w:t></w:r></w:p></w:tc></w:tr>
+            <w:tr><w:tc><w:p><w:r><w:t>Mara</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>Captain</w:t></w:r></w:p></w:tc></w:tr>
+          </w:tbl>
+        </w:body>
+      </w:document>`;
+    const docx = storedZip({ "word/document.xml": documentXml });
+
+    await page.getByRole("button", { name: "File", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Open Word document (.docx)…" })).toBeVisible();
+    await page.locator("#docx-file-input").setInputFiles({
+      name: "My Novel.docx",
+      mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      buffer: docx,
+    });
+
+    await expect(page.locator("#doc-title")).toHaveValue("My Novel");
+    await expect(page.locator("#editor")).toHaveValue(/# Imported Chapter/);
+    await expect(page.locator("#editor")).toHaveValue(/\*\*bold words\*\*/);
+    await expect(page.locator("#editor")).toHaveValue(/\| Name \| Role \|/);
+    await expect(page.locator("#toast")).toContainText("original Word file was not changed");
   });
 
   test("themes and focus mode remain usable", async ({ page }) => {
