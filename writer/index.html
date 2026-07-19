@@ -3,30 +3,36 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Writer</title>
-<meta name="description" content="Writer — a local-first Markdown writing application with explicit, reviewable AI assistance.">
+<title>Dockyard Scribe</title>
+<meta name="description" content="Dockyard Scribe — a local-first fiction studio with explicit, reviewable AI assistance.">
 <meta name="theme-color" content="#28251f">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%2328251f'/><text x='32' y='44' text-anchor='middle' font-family='serif' font-size='42' fill='%23fff'>W</text></svg>">
+<meta property="og:title" content="Dockyard Scribe">
+<meta property="og:description" content="A local-first fiction studio with reviewable AI, portable project knowledge, and non-destructive editing.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="assets/dockyard-scribe-social.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" href="assets/dockyard-scribe-logo.png">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <div id="app">
-  <section id="first-run" class="first-run" hidden aria-label="Welcome to Writer">
-    <div><strong>Writer keeps your source local.</strong> Preview mode uses fixed placeholder text—not real AI. Connect Ollama or explicitly enable a cloud provider when you are ready.</div>
+  <section id="first-run" class="first-run" hidden aria-label="Welcome to Dockyard Scribe">
+    <div><strong>Dockyard Scribe keeps your source local.</strong> Preview mode uses fixed placeholder text—not real AI. Connect Ollama or explicitly enable a cloud provider when you are ready.</div>
     <button id="first-run-dismiss" class="secondary-btn">Got it</button>
   </section>
 
   <!-- ══════════════ Menu bar ══════════════ -->
   <header id="menubar">
     <div class="menubar-left">
-      <span id="appmark" title="Writer 0.1">W</span>
+      <span id="appmark" title="Dockyard Scribe 0.1"><img src="assets/dockyard-scribe-logo.png" alt=""></span>
+      <span class="brand-name">Dockyard Scribe</span>
       <nav id="menus">
         <div class="menu" data-menu="file"><button class="menu-title">File</button>
           <div class="menu-drop">
             <button data-action="new-doc">New document</button>
             <button data-action="open-document">Open document (.docx, .txt, .rtf, .md)…</button>
             <button data-action="connect-folder">Connect project folder…</button>
-            <button data-action="save-now">Save Writer copy now <span class="kbd">Ctrl+S</span></button>
+            <button data-action="save-now">Save Dockyard Scribe copy now <span class="kbd">Ctrl+S</span></button>
             <button data-action="snapshot">Snapshot version</button>
             <hr>
             <button data-action="export-md">Export copy as Markdown</button>
@@ -90,7 +96,7 @@
         </div>
         <div class="menu" data-menu="help"><button class="menu-title">Help</button>
           <div class="menu-drop">
-            <button data-action="about">About Writer</button>
+            <button data-action="about">About Dockyard Scribe</button>
             <button data-action="shortcuts">Keyboard shortcuts</button>
           </div>
         </div>

@@ -1,9 +1,10 @@
 {
-  "name": "writer-local-first",
+  "name": "dockyard-scribe-local-first",
   "version": "0.1.0",
   "private": true,
-  "description": "Local-first Markdown writing application with explicit AI assistance",
+  "description": "Dockyard Scribe local-first fiction studio with explicit AI assistance",
   "scripts": {
+    "build": "node scripts/build-site.mjs",
     "serve": "python3 -m http.server 4173 --bind 127.0.0.1",
     "test": "playwright test",
     "test:ui": "playwright test --ui",

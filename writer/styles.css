@@ -1,5 +1,5 @@
 /* ════════════════════════════════════════════════════════════════
-   Writer 0.1 — theme tokens
+   Dockyard Scribe 0.1 — theme tokens
    Every skin overrides only these variables. Behavior never changes
    with the theme (Davenport-compatible reskinning).
    ════════════════════════════════════════════════════════════════ */
@@ -102,9 +102,14 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
 }
 .menubar-left { display: flex; align-items: center; gap: 10px; }
 #appmark {
-  width: 24px; height: 24px; display: grid; place-items: center;
-  background: var(--ink); color: var(--bg); border-radius: 6px;
-  font-weight: 700; font-size: 13px; font-family: var(--font-serif);
+  width: 30px; height: 30px; display: grid; place-items: center; flex: 0 0 auto;
+}
+#appmark img {
+  display: block; width: 100%; height: 100%; object-fit: contain;
+}
+.brand-name {
+  margin-left: -4px; font-family: var(--font-serif); font-size: 15px;
+  font-weight: 700; letter-spacing: .01em; color: var(--ink);
 }
 #menus { display: flex; }
 #project-name { font-weight: 600; font-size: 12.5px; color: var(--ink-soft); }
@@ -423,6 +428,7 @@ table.routing th { background: var(--bg-panel); font-size: 11px; text-transform:
 #app.focus-mode #toolbar-ai, #app.focus-mode #project-panel, #app.focus-mode #sidecar { display: none; }
 
 @media (max-width: 900px) {
+  .brand-name { display: none; }
   #project-panel { position: absolute; z-index: 40; height: calc(100% - 1px); box-shadow: var(--shadow); }
   #sidecar { width: 280px; }
   #editor, #preview, #editor-head { padding-left: 20px; padding-right: 20px; }

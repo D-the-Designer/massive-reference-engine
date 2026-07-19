@@ -44,22 +44,22 @@ async function fresh(page) {
   await page.reload();
 }
 
-test.describe("Writer release contract", () => {
+test.describe("Dockyard Scribe release contract", () => {
   test.beforeEach(async ({ page }) => fresh(page));
 
   test("loads a local-first workspace", async ({ page }) => {
-    await expect(page).toHaveTitle("Writer");
+    await expect(page).toHaveTitle("Dockyard Scribe");
     await expect(page.locator("#doc-title")).toHaveValue("Chapter One");
     await expect(page.locator("#status-scope")).toHaveText("Local-only");
     await expect(page.locator("#status-model")).toHaveText("Canned transforms · Preview (no AI)");
   });
 
   test("first run explains Preview and can be dismissed", async ({ page }) => {
-    await expect(page.getByLabel("Welcome to Writer")).toContainText("fixed placeholder text");
+    await expect(page.getByLabel("Welcome to Dockyard Scribe")).toContainText("fixed placeholder text");
     await page.getByRole("button", { name: "Got it" }).click();
-    await expect(page.getByLabel("Welcome to Writer")).toBeHidden();
+    await expect(page.getByLabel("Welcome to Dockyard Scribe")).toBeHidden();
     await page.reload();
-    await expect(page.getByLabel("Welcome to Writer")).toBeHidden();
+    await expect(page.getByLabel("Welcome to Dockyard Scribe")).toBeHidden();
   });
 
   test("editor changes persist and create a recovery snapshot", async ({ page }) => {
@@ -220,7 +220,7 @@ test.describe("Writer release contract", () => {
     await expect(page.getByRole("button", { name: "Revisions 1" })).toBeVisible();
   });
 
-  test("opens a Word document as a new editable Writer document", async ({ page }) => {
+  test("opens a Word document as a new editable Dockyard Scribe document", async ({ page }) => {
     const documentXml = `<?xml version="1.0" encoding="UTF-8"?>
       <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
         <w:body>
@@ -242,7 +242,7 @@ test.describe("Writer release contract", () => {
       buffer: docx,
     });
 
-    await expect(page.locator("#doc-title")).toHaveValue("My Novel — Writer Copy");
+    await expect(page.locator("#doc-title")).toHaveValue("My Novel — Dockyard Scribe Copy");
     await expect(page.locator("#editor")).toHaveValue(/# Imported Chapter/);
     await expect(page.locator("#editor")).toHaveValue(/\*\*bold words\*\*/);
     await expect(page.locator("#editor")).toHaveValue(/\| Name \| Role \|/);
@@ -262,22 +262,22 @@ test.describe("Writer release contract", () => {
         mimeType: sample.mimeType,
         buffer: Buffer.from(sample.source),
       });
-      await expect(page.locator("#doc-title")).toHaveValue(sample.name.replace(/\.[^.]+$/, "") + " — Writer Copy");
+      await expect(page.locator("#doc-title")).toHaveValue(sample.name.replace(/\.[^.]+$/, "") + " — Dockyard Scribe Copy");
       await expect(page.locator("#editor")).toHaveValue(sample.expected);
       await expect(page.locator("#toast")).toContainText("original file will never be overwritten");
     });
   }
 
-  test("reopening a source creates a numbered Writer copy", async ({ page }) => {
+  test("reopening a source creates a numbered Dockyard Scribe copy", async ({ page }) => {
     const source = {
       name: "Draft.md",
       mimeType: "text/markdown",
       buffer: Buffer.from("# Draft"),
     };
     await page.locator("#document-file-input").setInputFiles(source);
-    await expect(page.locator("#doc-title")).toHaveValue("Draft — Writer Copy");
+    await expect(page.locator("#doc-title")).toHaveValue("Draft — Dockyard Scribe Copy");
     await page.locator("#document-file-input").setInputFiles(source);
-    await expect(page.locator("#doc-title")).toHaveValue("Draft — Writer Copy 2");
+    await expect(page.locator("#doc-title")).toHaveValue("Draft — Dockyard Scribe Copy 2");
   });
 
   test("themes and focus mode remain usable", async ({ page }) => {
