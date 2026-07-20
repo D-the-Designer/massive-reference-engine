@@ -1,0 +1,38 @@
+name: Writer CI
+
+on:
+  pull_request:
+    paths:
+      - "writer/**"
+      - ".github/workflows/writer-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "writer/**"
+      - ".github/workflows/writer-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: writer
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: writer/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: writer-test-report
+          path: writer/playwright-report
+          retention-days: 7

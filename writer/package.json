@@ -1,0 +1,16 @@
+{
+  "name": "writer-local-first",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Writer local-first fiction studio with explicit AI assistance",
+  "scripts": {
+    "build": "node scripts/build-site.mjs",
+    "serve": "python3 -m http.server 4173 --bind 127.0.0.1",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "validate:knowledge": "node scripts/validate-knowledge-manifest.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.1"
+  }
+}
