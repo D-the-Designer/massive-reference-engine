@@ -209,6 +209,7 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
   text-transform: uppercase; color: var(--ink-faint);
   border-bottom: 1px solid var(--line);
 }
+.panel-head-actions { display: flex; align-items: center; gap: 4px; }
 .icon-btn {
   border: 0; background: none; cursor: pointer; color: var(--ink-faint);
   border-radius: 5px; padding: 2px 7px; font-size: 13px;

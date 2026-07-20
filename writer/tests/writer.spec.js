@@ -208,6 +208,25 @@ test.describe("Writer release contract", () => {
     await expect(page.getByRole("button", { name: "Revisions 1" })).toBeVisible();
   });
 
+  test("AI sandbox exports a Davenport-compatible Markdown copy", async ({ page }) => {
+    const editor = page.locator("#editor");
+    const before = await editor.inputValue();
+    await page.getByPlaceholder("Ask, brainstorm, or draft. Nothing enters the manuscript until you insert it.").fill("Give me a harbor image.");
+    await page.getByRole("button", { name: "Send" }).click();
+    await expect(page.getByText("This is the built-in Preview provider", { exact: false })).toBeVisible();
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Export sandbox as Markdown" }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/-ai-sandbox-.*\.md$/);
+    const content = await require("fs/promises").readFile(await download.path(), "utf8");
+    expect(content).toContain("schema: davenport.notes.ai-sandbox.v1");
+    expect(content).toContain("## Writer");
+    expect(content).toContain("Give me a harbor image.");
+    expect(content).toContain("## Assistant");
+    expect(content).toContain("Provider: Preview (no AI)");
+    await expect(editor).toHaveValue(before);
+  });
+
   test("privacy receipts record exact request metadata", async ({ page }) => {
     await page.getByRole("button", { name: "Continue", exact: true }).click();
     await page.getByRole("button", { name: "Run continue" }).click();

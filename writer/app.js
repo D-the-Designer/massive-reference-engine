@@ -1559,6 +1559,71 @@ function insertFromChat(i, mode) {
 /* ══════════════════════════════════════════════════════════════
    Export — always a copy, never the source
    ══════════════════════════════════════════════════════════════ */
+function yamlString(value) {
+  return JSON.stringify(String(value ?? ""));
+}
+
+function sandboxMarkdown() {
+  const exported = new Date().toISOString();
+  const lines = [
+    "---",
+    "schema: davenport.notes.ai-sandbox.v1",
+    `title: ${yamlString(project.name + " — AI Sandbox")}`,
+    `project: ${yamlString(project.name)}`,
+    `source_app: ${yamlString("Writer")}`,
+    `exported_at: ${yamlString(exported)}`,
+    `provider: ${yamlString(currentProvider().name)}`,
+    `model: ${yamlString(project.settings.modelId)}`,
+    `privacy_scope: ${yamlString(project.settings.privacy)}`,
+    `message_count: ${project.chat.length}`,
+    "tags:",
+    "  - ai-sandbox",
+    "  - writer",
+    "---",
+    "",
+    `# ${project.name} — AI Sandbox`,
+    "",
+    "> Exported from Writer as a non-destructive Markdown copy.",
+    "",
+  ];
+  if (!project.chat.length) {
+    lines.push("_No sandbox messages yet._", "");
+  } else {
+    project.chat.forEach((message) => {
+      const speaker = message.role === "assistant" ? "Assistant" : "Writer";
+      lines.push(`## ${speaker}`, "");
+      if (message.role === "assistant") {
+        lines.push(
+          `- Provider: ${message.provider || currentProvider().name}`,
+          `- Model: ${message.model || project.settings.modelId}`,
+          `- Scope: ${message.scope || (leavesDevice() ? "cloud" : "local-only")}`,
+        );
+        if (message.contextNames?.length) lines.push(`- Context: ${message.contextNames.join(", ")}`);
+        lines.push("");
+      }
+      lines.push(message.text || "", "");
+    });
+  }
+  lines.push("---", "", `Exported ${exported}. The Writer project and manuscript were not modified.`, "");
+  return lines.join("\n");
+}
+
+async function exportSandboxMarkdown() {
+  const stamp = new Date().toISOString().slice(0, 16).replace("T", "-").replace(":", "");
+  const filename = `${slug(project.name)}-ai-sandbox-${stamp}.md`;
+  const content = sandboxMarkdown();
+  if (dirHandle) {
+    try {
+      const exports = await dirHandle.getDirectoryHandle("exports", { create: true });
+      await fsWriteFile(exports, filename, content);
+      toast(`Sandbox exported to exports/${filename} — project unchanged.`);
+      return;
+    } catch (e) { console.warn("sandbox export failed, falling back to download", e); }
+  }
+  download(filename, "text/markdown", content);
+  toast(`Sandbox exported as ${filename} — project unchanged.`);
+}
+
 function download(filename, mime, content) {
   const blob = new Blob([content], { type: mime });
   const a = document.createElement("a");
@@ -2272,6 +2337,7 @@ const ACTIONS = {
   "export-md": () => exportDoc("md"),
   "export-txt": () => exportDoc("txt"),
   "export-html": () => exportDoc("html"),
+  "export-sandbox-md": exportSandboxMarkdown,
   "backup-json": () => { flushEditor(); download(slug(project.name) + "-backup.json", "application/json", JSON.stringify(project, null, 2)); toast("Backup downloaded."); },
   "undo": () => { $("#editor").focus(); document.execCommand("undo"); },
   "redo": () => { $("#editor").focus(); document.execCommand("redo"); },

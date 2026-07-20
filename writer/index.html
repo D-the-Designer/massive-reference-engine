@@ -238,7 +238,10 @@
     <aside id="sidecar">
       <div class="panel-head">
         <span>AI sandbox</span>
-        <button class="icon-btn" data-action="toggle-sidecar" title="Collapse AI sandbox">⟨</button>
+        <div class="panel-head-actions">
+          <button class="icon-btn" data-action="export-sandbox-md" title="Export sandbox as Markdown" aria-label="Export sandbox as Markdown">⇩</button>
+          <button class="icon-btn" data-action="toggle-sidecar" title="Collapse AI sandbox">⟨</button>
+        </div>
       </div>
       <div id="sidecar-status">
         <button id="sidecar-model" class="chip" title="Change model"></button>

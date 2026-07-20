@@ -59,6 +59,11 @@ for connecting a real project folder or downloading backups.
 
 Writer also includes fiction-focused **Guided Write**, **Describe**, **Brainstorm**, **First Draft**, and **Feedback** commands. Outline, Lore & style, Sources, and manuscript context together act as the project Story Bible; every included item remains visible in pre-flight.
 
+The **AI sandbox** can be exported as a non-destructive Markdown transcript. Its
+front matter uses the forward-compatible `davenport.notes.ai-sandbox.v1` schema
+and records project, provider, model, privacy scope, export time, and message
+count for future Davenport Notes interoperability.
+
 1. A **pre-flight dialog** shows the operation, editable instruction, model, the exact context items included (with word counts), and the privacy scope — before anything is sent.
 2. The result opens in a **diff preview**. Nothing has changed yet.
 3. You choose **Keep original**, **Replace**, **Insert below**, or **Try again**.
