@@ -401,7 +401,23 @@ test.describe("Writer release contract", () => {
     await expect(page.getByRole("button", { name: /Gemini 2.5 Flash \(free tier\)/ })).toContainText("leaves device");
     await expect(page.getByRole("button", { name: /Qwen 3.6 27B \(free plan\)/ })).toContainText("leaves device");
     await expect(page.getByRole("button", { name: /Free Models Router/ })).toContainText("leaves device");
+    await expect(page.getByRole("button", { name: /Kimi K3 · 1M context/ })).toContainText("leaves device");
     await expect(page.getByText("Claude Sonnet 5", { exact: true })).toHaveCount(0);
+  });
+
+  test("Kimi is first-class and its session key stays out of project storage", async ({ page }) => {
+    await page.getByRole("button", { name: "Tools", exact: true }).click();
+    await page.getByRole("button", { name: "Providers & models…" }).click();
+    await expect(page.getByText("Kimi API (Moonshot AI cloud)", { exact: true })).toBeVisible();
+    await expect(page.getByText(/API is not presented here as a free service/)).toBeVisible();
+    await page.locator("#pr-kimi-key").fill("test-kimi-session-key");
+    await page.locator("#pr-save").click();
+    const stored = await page.evaluate(() => ({
+      project: localStorage.getItem("writer.project.v1"),
+      key: localStorage.getItem("writer.secret.kimi"),
+    }));
+    expect(stored.project || "").not.toContain("test-kimi-session-key");
+    expect(stored.key).toBeNull();
   });
 
   test("AI Horde generation uses the free async text API and limited request context", async ({ page }) => {

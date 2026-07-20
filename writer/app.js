@@ -34,6 +34,7 @@ function toast(msg, ms = 2600) {
 /* ── constants ────────────────────────────────────────────────── */
 const STORE_KEY = "writer.project.v1";
 const GEMINI_SECRET_KEY = "writer.secret.gemini";
+const KIMI_SECRET_KEY = "writer.secret.kimi";
 const GROQ_SECRET_KEY = "writer.secret.groq";
 const OPENROUTER_SECRET_KEY = "writer.secret.openrouter";
 const HORDE_SECRET_KEY = "writer.secret.aihorde";
@@ -98,6 +99,7 @@ const FICTION_MODELS = [
 let project = null;          // the whole persisted project object
 let dirHandle = null;        // File System Access directory handle (optional)
 let geminiKey = null;
+let kimiKey = null;
 let groqKey = null;
 let openRouterKey = null;
 let hordeKey = null;
@@ -147,6 +149,7 @@ function defaultProject() {
       koboldRepPenalty: 1.1,
       koboldMaxTokens: 512,
       geminiModel: "gemini-2.5-flash",
+      kimiModel: "kimi-k3",
       groqModel: "qwen/qwen3.6-27b",
       openRouterModel: "openrouter/free",
       hordeModel: "__any__",
@@ -168,6 +171,7 @@ function ensureProjectSchema() {
   project.training ||= { captureApproved: true, updated: Date.now() };
   project.settings.hordeModel ||= "__any__";
   project.settings.hordeMaxTokens = Number(project.settings.hordeMaxTokens) || 700;
+  project.settings.kimiModel ||= "kimi-k3";
   project.settings.byoProviders = Array.isArray(project.settings.byoProviders) ? project.settings.byoProviders : [];
 }
 
@@ -865,18 +869,35 @@ const GeminiProvider = {
   },
 };
 
-function openAICompatibleProvider({ id, name, note, models, key, host }) {
+function openAICompatibleProvider({ id, name, note, models, key, host, temperature = 0.8, tokenField = "max_tokens" }) {
   return { id, name, kind: "cloud", note, models: () => models,
     async call({ system, messages }) {
       const apiKey = key();
       if (!apiKey) throw new Error(`No ${name} API key set. Tools ▸ Providers & models.`);
-      const res = await fetch(host, { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + apiKey }, body: JSON.stringify({ model: project.settings.modelId, messages: [{ role: "system", content: system }, ...messages], temperature: 0.8, max_tokens: 2048 }) });
+      const body = { model: project.settings.modelId, messages: [{ role: "system", content: system }, ...messages], temperature };
+      body[tokenField] = 2048;
+      const res = await fetch(host, { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + apiKey }, body: JSON.stringify(body) });
       if (!res.ok) throw new Error(name + " error " + res.status + ": " + (await res.text()).slice(0, 180));
       const data = await res.json();
       return (((data.choices || [])[0] || {}).message?.content || "").trim();
     }
   };
 }
+
+const KimiProvider = openAICompatibleProvider({
+  id: "kimi",
+  name: "Kimi API",
+  note: "Moonshot AI cloud models with long context. Requests leave this device and require a Kimi API key; provider charges or credits may apply.",
+  key: () => kimiKey,
+  host: "https://api.moonshot.cn/v1/chat/completions",
+  temperature: 1,
+  tokenField: "max_completion_tokens",
+  models: [
+    { id: "kimi-k3", label: "Kimi K3 · 1M context", provider: "kimi" },
+    { id: "kimi-k2.6", label: "Kimi K2.6 · 256K context", provider: "kimi" },
+    { id: "kimi-k2.5", label: "Kimi K2.5 · 256K context", provider: "kimi" },
+  ],
+});
 
 const GroqProvider = openAICompatibleProvider({
   id: "groq", name: "Groq (free plan)", note: "Fast hosted inference with published free-plan rate limits. Requests leave this device.",
@@ -894,7 +915,7 @@ const OpenRouterProvider = openAICompatibleProvider({
   models: [{ id: "openrouter/free", label: "Free Models Router (model varies)", provider: "openrouter" }],
 });
 
-const PROVIDERS = { preview: PreviewProvider, ollama: OllamaProvider, kobold: KoboldProvider, aihorde: AIHordeProvider, gemini: GeminiProvider, groq: GroqProvider, openrouter: OpenRouterProvider };
+const PROVIDERS = { preview: PreviewProvider, ollama: OllamaProvider, kobold: KoboldProvider, aihorde: AIHordeProvider, gemini: GeminiProvider, kimi: KimiProvider, groq: GroqProvider, openrouter: OpenRouterProvider };
 
 function byoProvider(config) {
   return {
@@ -1836,7 +1857,7 @@ function showPrivacyChooser() {
 }
 
 function showProviders() {
-  const remembered = !!localStorage.getItem(GEMINI_SECRET_KEY) || !!localStorage.getItem(GROQ_SECRET_KEY) || !!localStorage.getItem(OPENROUTER_SECRET_KEY) || !!localStorage.getItem(HORDE_SECRET_KEY) || !!localStorage.getItem(BYO_SECRET_KEY);
+  const remembered = !!localStorage.getItem(GEMINI_SECRET_KEY) || !!localStorage.getItem(KIMI_SECRET_KEY) || !!localStorage.getItem(GROQ_SECRET_KEY) || !!localStorage.getItem(OPENROUTER_SECRET_KEY) || !!localStorage.getItem(HORDE_SECRET_KEY) || !!localStorage.getItem(BYO_SECRET_KEY);
   const byoRows = (project.settings.byoProviders || []).map((p) => `
     <div class="byo-row">
       <div><b>${esc(p.name)}</b><span class="muted">${esc(p.model)} · ${esc(p.endpoint)}</span></div>
@@ -1880,6 +1901,10 @@ function showProviders() {
       <div class="field"><label class="field-label" for="pr-gemini-key">Gemini API key</label><input type="password" id="pr-gemini-key" placeholder="${geminiKey ? "•••• key set for this session" : "Google AI Studio key"}"></div>
       <div class="field"><label class="field-label" for="pr-groq-key">Groq API key</label><input type="password" id="pr-groq-key" placeholder="${groqKey ? "•••• key set for this session" : "Groq free-plan key"}"></div>
       <div class="field"><label class="field-label" for="pr-openrouter-key">OpenRouter API key</label><input type="password" id="pr-openrouter-key" placeholder="${openRouterKey ? "•••• key set for this session" : "OpenRouter free-model key"}"></div>
+    </div>
+    <div class="model-group"><div class="model-group-head">Kimi API (Moonshot AI cloud)</div>
+      <div class="scope-banner cloud"><b>Leaves this device.</b> Kimi offers long-context cloud models, but its API is not presented here as a free service. A Moonshot API key and provider credits or billing may be required.</div>
+      <div class="field"><label class="field-label" for="pr-kimi-key">Kimi API key</label><input type="password" id="pr-kimi-key" placeholder="${kimiKey ? "•••• key set for this session" : "Moonshot platform API key"}"></div>
     </div>
     <div class="model-group"><div class="model-group-head">Bring your own API</div>
       <p class="muted">Add any OpenAI-compatible chat-completions service. Reopen this screen to add more connections. The service must permit requests from a browser.</p>
@@ -1952,6 +1977,7 @@ function showProviders() {
     project.settings.koboldMaxTokens = Number($("#pr-kobold-max", card).value) || 512;
     project.settings.hordeMaxTokens = Number($("#pr-horde-max", card).value) || 700;
     const gKey = $("#pr-gemini-key", card).value.trim(); if (gKey) geminiKey = gKey;
+    const kKey = $("#pr-kimi-key", card).value.trim(); if (kKey) kimiKey = kKey;
     const qKey = $("#pr-groq-key", card).value.trim(); if (qKey) groqKey = qKey;
     const rKey = $("#pr-openrouter-key", card).value.trim(); if (rKey) openRouterKey = rKey;
     const hKey = $("#pr-horde-key", card).value.trim(); if (hKey) hordeKey = hKey;
@@ -1970,12 +1996,13 @@ function showProviders() {
     }
     if ($("#pr-remember", card).checked) {
       if (geminiKey) localStorage.setItem(GEMINI_SECRET_KEY, geminiKey);
+      if (kimiKey) localStorage.setItem(KIMI_SECRET_KEY, kimiKey);
       if (groqKey) localStorage.setItem(GROQ_SECRET_KEY, groqKey);
       if (openRouterKey) localStorage.setItem(OPENROUTER_SECRET_KEY, openRouterKey);
       if (hordeKey && hordeKey !== "0000000000") localStorage.setItem(HORDE_SECRET_KEY, hordeKey);
       localStorage.setItem(BYO_SECRET_KEY, JSON.stringify(byoKeys));
     } else {
-      localStorage.removeItem(GEMINI_SECRET_KEY); localStorage.removeItem(GROQ_SECRET_KEY); localStorage.removeItem(OPENROUTER_SECRET_KEY);
+      localStorage.removeItem(GEMINI_SECRET_KEY); localStorage.removeItem(KIMI_SECRET_KEY); localStorage.removeItem(GROQ_SECRET_KEY); localStorage.removeItem(OPENROUTER_SECRET_KEY);
       localStorage.removeItem(HORDE_SECRET_KEY); localStorage.removeItem(BYO_SECRET_KEY);
     }
     markDirty();
@@ -2381,6 +2408,7 @@ function init() {
   ensureProjectSchema();
   project.privacyReceipts ||= [];
   geminiKey = localStorage.getItem(GEMINI_SECRET_KEY) || null;
+  kimiKey = localStorage.getItem(KIMI_SECRET_KEY) || null;
   groqKey = localStorage.getItem(GROQ_SECRET_KEY) || null;
   openRouterKey = localStorage.getItem(OPENROUTER_SECRET_KEY) || null;
   hordeKey = localStorage.getItem(HORDE_SECRET_KEY) || "0000000000";

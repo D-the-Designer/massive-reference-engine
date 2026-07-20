@@ -76,6 +76,7 @@ Models are replaceable adapters, chosen per task and never hidden:
 | **Ollama** | stays local | Point at a local Ollama server (Tools ▸ Providers). “Detect installed models” lists what's pulled. If the browser can't reach it from a `file://` page, start Ollama with `OLLAMA_ORIGINS='*' ollama serve`. |
 | **KoboldAI / KoboldCpp** | stays local | Reuses the writing model loaded by a local Kobold server, normally at `http://localhost:5001`. Writer can detect its model and exposes temperature, repetition penalty, and output length. |
 | **Gemini API** | leaves device | Limited free tier through Google AI Studio. Free-tier content may be used to improve Google products. |
+| **Kimi API** | leaves device | Moonshot AI's OpenAI-compatible cloud API, with Kimi K3 (1M context) and K2.6/K2.5 options. Requires a Moonshot API key; provider credits or billing may apply. |
 | **Groq** | leaves device | Published free-plan limits with fast hosted open-model inference, including GPT-OSS. |
 | **OpenRouter** | leaves device | `openrouter/free` routes among currently available free models; model choice and availability can vary. |
 | **AI Horde** | leaves device | Free community-cloud text generation. Requests are handled by volunteer-operated workers; anonymous use has the lowest queue priority. |
