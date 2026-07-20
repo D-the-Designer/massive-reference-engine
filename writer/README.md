@@ -48,8 +48,8 @@ for connecting a real project folder or downloading backups.
 ## The workspace
 
 - **Project panel** (left): Manuscript, Outline, Lore & style, Sources, Versions. Collapsible.
-- **Editor** (center): Markdown/plain-text source with a rendered Preview toggle. Formatting toolbar writes ordinary Markdown.
-- **AI sidecar** (right): chat with the selected model. A response is never part of the manuscript until you insert it — *At cursor*, *Below selection*, *New document*, or *Copy*. Collapsible.
+- **AI sandbox** (narrow left rail): chat, brainstorm, and draft beside the manuscript. A response is never part of the manuscript until you insert it — *At cursor*, *Below selection*, *New document*, or *Copy*. Collapsible.
+- **Editor** (wide right pane): the canonical Markdown/plain-text manuscript remains visually distinct from AI proposals, with a rendered Preview toggle and portable Markdown formatting.
 - **View ▸ Focus mode** is the minimal skin: just the document editor.
 - Themes (Parchment / Ink / Plain) are pure token swaps in `styles.css`; behavior never changes with the skin.
 

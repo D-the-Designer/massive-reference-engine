@@ -197,7 +197,10 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
   background: var(--bg-panel); min-height: 0;
 }
 #project-panel { border-right: 1px solid var(--line); }
-#sidecar { width: 330px; border-left: 1px solid var(--line); }
+#sidecar {
+  width: 280px; border-right: 1px solid var(--line);
+  background: color-mix(in oklch, var(--bg-panel) 88%, var(--ai-soft));
+}
 #project-panel.collapsed, #sidecar.collapsed { display: none; }
 
 .panel-head {
@@ -274,7 +277,7 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
 .prose a { color: var(--accent); }
 .prose hr { border-top: 1px solid var(--line-strong); margin: 1.4em auto; width: 40%; }
 
-/* ── Sidecar ──────────────────────────────────────────────────── */
+/* ── AI sandbox ───────────────────────────────────────────────── */
 #sidecar-status {
   display: flex; flex-wrap: wrap; gap: 5px; padding: 8px 10px;
   border-bottom: 1px solid var(--line);
@@ -427,10 +430,10 @@ table.routing th { background: var(--bg-panel); font-size: 11px; text-transform:
 /* ── Focus mode (minimal skin) ────────────────────────────────── */
 #app.focus-mode #toolbar-ai, #app.focus-mode #project-panel, #app.focus-mode #sidecar { display: none; }
 
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   .brand-name { display: none; }
   #project-panel { position: absolute; z-index: 40; height: calc(100% - 1px); box-shadow: var(--shadow); }
-  #sidecar { width: 280px; }
+  #sidecar { width: 260px; }
   #editor, #preview, #editor-head { padding-left: 20px; padding-right: 20px; }
 }
 
@@ -439,7 +442,7 @@ table.routing th { background: var(--bg-panel); font-size: 11px; text-transform:
   #menus .menu-title { padding-inline: 7px; }
   .menubar-right, #toolbar-standard .tb-sep, #toolbar-standard .tb-color { display: none; }
   .toolbar { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: thin; }
-  #sidecar { position: absolute; z-index: 45; right: 0; height: 100%; width: min(92vw, 360px); box-shadow: var(--shadow); }
+  #sidecar { position: absolute; z-index: 45; left: 0; height: 100%; width: min(88vw, 320px); box-shadow: var(--shadow); }
   #editor, #preview { padding: 10px 16px 100px; }
   #statusbar { gap: 8px; overflow-x: auto; }
   .first-run { align-items: flex-start; }

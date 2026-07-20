@@ -187,7 +187,16 @@ test.describe("Writer release contract", () => {
     await expect(page.locator("#preview")).toContainText("<script>");
   });
 
-  test("AI sidecar does not change the manuscript until insertion", async ({ page }) => {
+  test("AI sandbox stays left of the manuscript and does not change it until insertion", async ({ page }) => {
+    const sandbox = await page.locator("#sidecar").boundingBox();
+    const manuscript = await page.locator("#editor-pane").boundingBox();
+    expect(sandbox).not.toBeNull();
+    expect(manuscript).not.toBeNull();
+    if (page.viewportSize().width > 640) {
+      expect(sandbox.x + sandbox.width).toBeLessThanOrEqual(manuscript.x + 1);
+    } else {
+      expect(sandbox.x).toBeLessThanOrEqual(manuscript.x + 1);
+    }
     const editor = page.locator("#editor");
     const before = await editor.inputValue();
     await page.getByPlaceholder("Ask, brainstorm, or draft. Nothing enters the manuscript until you insert it.").fill("Draft one line");

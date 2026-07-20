@@ -53,7 +53,7 @@
         <div class="menu" data-menu="view"><button class="menu-title">View</button>
           <div class="menu-drop">
             <button data-action="toggle-project">Toggle project panel</button>
-            <button data-action="toggle-sidecar">Toggle AI sidecar</button>
+            <button data-action="toggle-sidecar">Toggle AI sandbox</button>
             <button data-action="toggle-preview">Toggle Markdown preview</button>
             <button data-action="focus-mode">Focus mode (minimal skin)</button>
             <hr>
@@ -203,7 +203,7 @@
     <button class="tb tb-ai" data-ai="feedback" title="Critique the active document without changing it">Feedback</button>
     <button class="tb tb-ai" data-ai="shorten" title="Condense selected text">Shorten</button>
     <span class="tb-sep"></span>
-    <button class="tb tb-ai" data-action="toggle-sidecar" title="Open the AI sidecar chat">Insert from AI</button>
+    <button class="tb tb-ai" data-action="toggle-sidecar" title="Open the AI sandbox">Insert from AI</button>
     <span class="tb-sep"></span>
     <button class="tb tb-chip" id="model-chip" title="Choose provider and model">Model: <b id="model-chip-label">—</b> ▾</button>
     <button class="tb tb-chip" id="context-chip" title="See and choose exactly what is sent">Context: <b id="context-chip-label">—</b> ▾</button>
@@ -235,21 +235,10 @@
       </div>
     </aside>
 
-    <section id="editor-pane">
-      <div id="editor-head">
-        <input id="doc-title" type="text" spellcheck="false" title="Document title (rename)">
-        <span id="doc-meta" class="muted"></span>
-      </div>
-      <div id="editor-body">
-        <textarea id="editor" spellcheck="true" placeholder="Write here. Select text and use Rewrite / Expand / Shorten, or place the cursor and press Continue."></textarea>
-        <div id="preview" class="prose" hidden></div>
-      </div>
-    </section>
-
     <aside id="sidecar">
       <div class="panel-head">
-        <button class="icon-btn" data-action="toggle-sidecar" title="Collapse panel">⟩</button>
-        <span>AI sidecar</span>
+        <span>AI sandbox</span>
+        <button class="icon-btn" data-action="toggle-sidecar" title="Collapse AI sandbox">⟨</button>
       </div>
       <div id="sidecar-status">
         <button id="sidecar-model" class="chip" title="Change model"></button>
@@ -265,6 +254,17 @@
         </div>
       </form>
     </aside>
+
+    <section id="editor-pane">
+      <div id="editor-head">
+        <input id="doc-title" type="text" spellcheck="false" title="Document title (rename)">
+        <span id="doc-meta" class="muted"></span>
+      </div>
+      <div id="editor-body">
+        <textarea id="editor" spellcheck="true" placeholder="Write here. Select text and use Rewrite / Expand / Shorten, or place the cursor and press Continue."></textarea>
+        <div id="preview" class="prose" hidden></div>
+      </div>
+    </section>
 
   </main>
 
