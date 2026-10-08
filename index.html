@@ -28,7 +28,7 @@
   <div style="margin-bottom:28px; max-width:820px;">
     <div style="font-family:'Inter',sans-serif; font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:oklch(0.5 0.01 90); margin-bottom:14px;">Public Domain Library &middot; Sea Creatures Edition</div>
     <h1 style="font-family:'Cormorant Garamond',serif; font-weight:600; font-size:48px; line-height:1.05; margin:0 0 16px;">Marine Life &amp; Sea Monsters</h1>
-    <p style="font-size:15.5px; line-height:1.6; color:oklch(0.38 0.01 90); margin:0 0 8px;">A growing collection of sea-creature illustrations and photos, licensed Public Domain or Creative Commons, ready to drop into a site or publication. Every card lists its exact license and links straight back to the Wikimedia Commons source page &mdash; click <b>Copy</b> for a ready-to-paste attribution that includes the license and source link.</p>
+    <p style="font-size:15.5px; line-height:1.6; color:oklch(0.38 0.01 90); margin:0 0 8px;">A growing collection of sea-creature illustrations and photos, licensed Public Domain or Creative Commons, ready to drop into a site or publication. <b>Drag any image</b> straight out of this page and into another browser window, a canvas app like Adobe Firefly Boards or Figma, a document, or onto your desktop &mdash; it carries the image at your selected resolution plus its attribution. Every card lists its exact license and links straight back to the Wikimedia Commons source page &mdash; click <b>Copy</b> for a ready-to-paste attribution that includes the license and source link.</p>
     <p style="font-size:13px; line-height:1.5; color:oklch(0.55 0.01 90); margin:0;">This is a growing set ({{ totalCount }} items) &mdash; let me know which subcategory to expand further, and flag any thumbnail that fails to load (it'll show a placeholder card instead).</p>
   </div>
 
@@ -53,7 +53,7 @@
     <sc-for list="{{ items }}" as="img" hint-placeholder-count="16">
       <figure style="break-inside:avoid; margin:0 0 22px; background:white; border:1px solid oklch(0.9 0.005 90); border-radius:2px; overflow:hidden;">
         <div style="position:relative; width:100%; background:oklch(0.95 0.004 90);">
-          <img data-full-src="{{ img.imgUrl }}" alt="{{ img.title }}" ref="{{ img.setRef }}" onerror="{{ img.handleError }}" onload="this.style.display='block'; this.nextElementSibling.style.display='none'; this.removeAttribute('data-retrying');" style="display:block; width:100%; height:auto; background:oklch(0.95 0.004 90);" />
+          <img data-full-src="{{ img.imgUrl }}" alt="{{ img.title }}" ref="{{ img.setRef }}" draggable="true" onDragStart="{{ img.dragStartHandler }}" onDragEnd="{{ img.dragEndHandler }}" onerror="{{ img.handleError }}" onload="this.style.display='block'; this.nextElementSibling.style.display='none'; this.removeAttribute('data-retrying');" style="display:block; width:100%; height:auto; background:oklch(0.95 0.004 90); cursor:grab;" />
           <div class="fallback" style="display:none; width:100%; aspect-ratio:4/5; align-items:center; justify-content:center; text-align:center; padding:20px; box-sizing:border-box; background:repeating-linear-gradient(135deg, oklch(0.93 0.005 90), oklch(0.93 0.005 90) 8px, oklch(0.96 0.004 90) 8px, oklch(0.96 0.004 90) 16px);">
             <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:oklch(0.5 0.01 90); line-height:1.6;">image unavailable<br/>{{ img.title }}</span>
           </div>
@@ -203,6 +203,11 @@ class Component extends DCLogic {
     { value: 'original', label: 'Original' },
   ];
 
+  fileUrl(file, width) {
+    const base = 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(file);
+    return !width || width === 'original' ? base : base + '?width=' + width;
+  }
+
   buildAttribution(it, imgUrl, commonsUrl, format) {
     const license = it.license || 'Public Domain';
     if (format === 'markdown') {
@@ -247,9 +252,39 @@ class Component extends DCLogic {
     }
   }
 
+  // Populates every transfer flavor a drop target might read, so a single
+  // drag works across browsers, canvas apps (Firefly Boards, Figma, Miro),
+  // rich-text editors, and the OS file system:
+  //   text/uri-list + text/plain -> the image URL (cross-browser standard)
+  //   text/html                  -> <figure> with attribution (docs/editors)
+  //   DownloadURL                -> drag-out to desktop as a file (Chromium)
+  handleDragStart(it, e) {
+    const dt = e.dataTransfer;
+    if (!dt) return;
+    const w = this.state.widthByFile[it.file] || '800';
+    const url = this.fileUrl(it.file, w);
+    const commonsUrl = 'https://commons.wikimedia.org/wiki/File:' + encodeURIComponent(it.file);
+    const isPng = /\.png$/i.test(it.file);
+    const base = it.file.replace(/\.[^/.]+$/, '').replace(/[^a-z0-9_-]+/gi, '_');
+    dt.effectAllowed = 'copy';
+    dt.setData('text/uri-list', url);
+    dt.setData('text/plain', url);
+    dt.setData('text/html', this.buildAttribution(it, url, commonsUrl, 'html'));
+    try {
+      dt.setData('DownloadURL', (isPng ? 'image/png' : 'image/jpeg') + ':' + base + '_' + w + (isPng ? '.png' : '.jpg') + ':' + url);
+    } catch (err) { /* non-Chromium browsers may reject the custom type */ }
+    // Direct style mutation instead of setState: a re-render that swaps the
+    // dragged node mid-dragstart cancels the drag in most browsers.
+    e.target.style.opacity = '0.55';
+  }
+
+  handleDragEnd(e) {
+    e.target.style.opacity = '';
+  }
+
   async handleDownload(it, width) {
     const w = width || '800';
-    const url = 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(it.file) + (w === 'original' ? '' : '?width=' + w);
+    const url = this.fileUrl(it.file, w);
     this.setState({ downloadingFile: it.file });
     const finish = () => this.setState({ downloadingFile: null });
     try {
@@ -329,6 +364,8 @@ class Component extends DCLogic {
         copyLabel: isCopied ? 'Copied \u2713' : 'Copy attribution',
         copyButtonStyle: 'flex:1; padding:8px 12px; font-size:12px; font-weight:500; border-radius:6px; border:none; cursor:pointer; color:white; background:' + (isCopied ? 'oklch(0.5 0.12 150)' : 'oklch(0.2 0.005 90)') + ';',
         copyHandler: () => this.handleCopy(it, imgUrl, commonsUrl),
+        dragStartHandler: (e) => this.handleDragStart(it, e),
+        dragEndHandler: (e) => this.handleDragEnd(e),
         setRef,
         handleError: (e) => this.handleImgError(e),
         resolutionOptions: this.RESOLUTIONS,
