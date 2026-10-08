@@ -28,7 +28,7 @@
   <div style="margin-bottom:28px; max-width:820px;">
     <div style="font-family:'Inter',sans-serif; font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:oklch(0.5 0.01 90); margin-bottom:14px;">Public Domain Library &middot; Sea Creatures Edition</div>
     <h1 style="font-family:'Cormorant Garamond',serif; font-weight:600; font-size:48px; line-height:1.05; margin:0 0 16px;">Marine Life &amp; Sea Monsters</h1>
-    <p style="font-size:15.5px; line-height:1.6; color:oklch(0.38 0.01 90); margin:0 0 8px;">A growing collection of sea-creature illustrations and photos, licensed Public Domain or Creative Commons, ready to drop into a site or publication. <b>Drag any image</b> straight out of this page and into another browser window, a canvas app like Adobe Firefly Boards or Figma, a document, or onto your desktop &mdash; it carries the image at your selected resolution plus its attribution. Every card lists its exact license and links straight back to the Wikimedia Commons source page &mdash; click <b>Copy</b> for a ready-to-paste attribution that includes the license and source link.</p>
+    <p style="font-size:15.5px; line-height:1.6; color:oklch(0.38 0.01 90); margin:0 0 8px;">A growing collection of sea-creature illustrations and photos, licensed Public Domain or Creative Commons, ready to drop into a site or publication. <b>Drag any image</b> straight out of this page and into another browser window, a canvas app like Adobe Firefly Boards or Figma, a document, or onto your desktop &mdash; it carries the image at your selected resolution plus its attribution. Dragging also copies the image itself to your clipboard, so if an app won't accept the drop, just paste (Ctrl/Cmd+V). Every card lists its exact license and links straight back to the Wikimedia Commons source page &mdash; click <b>Copy</b> for a ready-to-paste attribution that includes the license and source link.</p>
     <p style="font-size:13px; line-height:1.5; color:oklch(0.55 0.01 90); margin:0;">This is a growing set ({{ totalCount }} items) &mdash; let me know which subcategory to expand further, and flag any thumbnail that fails to load (it'll show a placeholder card instead).</p>
   </div>
 
@@ -53,7 +53,7 @@
     <sc-for list="{{ items }}" as="img" hint-placeholder-count="16">
       <figure style="break-inside:avoid; margin:0 0 22px; background:white; border:1px solid oklch(0.9 0.005 90); border-radius:2px; overflow:hidden;">
         <div style="position:relative; width:100%; background:oklch(0.95 0.004 90);">
-          <img data-full-src="{{ img.imgUrl }}" alt="{{ img.title }}" ref="{{ img.setRef }}" draggable="true" onDragStart="{{ img.dragStartHandler }}" onDragEnd="{{ img.dragEndHandler }}" onerror="{{ img.handleError }}" onload="this.style.display='block'; this.nextElementSibling.style.display='none'; this.removeAttribute('data-retrying');" style="display:block; width:100%; height:auto; background:oklch(0.95 0.004 90); cursor:grab;" />
+          <img data-full-src="{{ img.imgUrl }}" alt="{{ img.title }}" ref="{{ img.setRef }}" draggable="true" onDragStart="{{ img.dragStartHandler }}" onDragEnd="{{ img.dragEndHandler }}" onerror="{{ img.handleError }}" onload="{{ img.loadHandler }}" style="display:block; width:100%; height:auto; background:oklch(0.95 0.004 90); cursor:grab;" />
           <div class="fallback" style="display:none; width:100%; aspect-ratio:4/5; align-items:center; justify-content:center; text-align:center; padding:20px; box-sizing:border-box; background:repeating-linear-gradient(135deg, oklch(0.93 0.005 90), oklch(0.93 0.005 90) 8px, oklch(0.96 0.004 90) 8px, oklch(0.96 0.004 90) 16px);">
             <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:oklch(0.5 0.01 90); line-height:1.6;">image unavailable<br/>{{ img.title }}</span>
           </div>
@@ -234,6 +234,16 @@ class Component extends DCLogic {
     return this._observer;
   }
 
+  // React needs a function here — the previous inline onload string made
+  // React throw an uncaught error (#231) on every successful image load.
+  handleImgLoad(e) {
+    const el = e.target;
+    el.style.display = 'block';
+    const fb = el.nextElementSibling;
+    if (fb) fb.style.display = 'none';
+    el.removeAttribute('data-retrying');
+  }
+
   handleImgError(e) {
     const el = e.target;
     const retryCount = parseInt(el.dataset.retryCount || '0', 10);
@@ -273,6 +283,7 @@ class Component extends DCLogic {
     try {
       dt.setData('DownloadURL', (isPng ? 'image/png' : 'image/jpeg') + ':' + base + '_' + w + (isPng ? '.png' : '.jpg') + ':' + url);
     } catch (err) { /* non-Chromium browsers may reject the custom type */ }
+    this.copyImageToClipboard(it, w);
     // Direct style mutation instead of setState: a re-render that swaps the
     // dragged node mid-dragstart cancels the drag in most browsers.
     e.target.style.opacity = '0.55';
@@ -280,6 +291,48 @@ class Component extends DCLogic {
 
   handleDragEnd(e) {
     e.target.style.opacity = '';
+  }
+
+  // Drag *is* copy-and-paste: every drag also writes the real image bytes
+  // (as PNG — the only image type the async clipboard accepts) to the system
+  // clipboard. Canvas apps that only take file drops and ignore URL drops
+  // (e.g. Firefly Boards) still get the image: drag, then press Ctrl/Cmd+V.
+  copyImageToClipboard(it, width) {
+    if (!(navigator.clipboard && navigator.clipboard.write && window.ClipboardItem)) return;
+    const url = this.fileUrl(it.file, width);
+    const pngBlob = fetch(url)
+      .then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
+      .then((blob) => blob.type === 'image/png' ? blob : createImageBitmap(blob).then((bmp) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = bmp.width;
+        canvas.height = bmp.height;
+        canvas.getContext('2d').drawImage(bmp, 0, 0);
+        bmp.close();
+        return new Promise((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error('toBlob failed'))), 'image/png'));
+      }));
+    // Promise-in-ClipboardItem keeps the write inside the drag's user
+    // activation; older Chromium rejects that form, so fall back to writing
+    // the resolved blob (still inside the ~5s activation window).
+    navigator.clipboard.write([new ClipboardItem({ 'image/png': pngBlob })])
+      .catch(() => pngBlob.then((b) => navigator.clipboard.write([new ClipboardItem({ 'image/png': b })])))
+      .then(() => this.showToast('“' + it.title + '” copied — press Ctrl/Cmd+V to paste it where you dropped'))
+      .catch(() => {});
+  }
+
+  // Direct-DOM toast (no setState): a re-render mid-drag can swap the
+  // dragged node and cancel the drag in most browsers.
+  showToast(msg) {
+    let el = this._toastEl;
+    if (!el || !el.isConnected) {
+      el = document.createElement('div');
+      el.style.cssText = 'position:fixed; left:50%; bottom:28px; transform:translateX(-50%); z-index:9999; max-width:min(90vw,480px); padding:10px 18px; border-radius:999px; background:oklch(0.2 0.005 90 / 0.92); color:white; font-family:Inter,sans-serif; font-size:13px; line-height:1.4; text-align:center; pointer-events:none; opacity:0; transition:opacity 0.25s;';
+      document.body.appendChild(el);
+      this._toastEl = el;
+    }
+    el.textContent = msg;
+    requestAnimationFrame(() => { el.style.opacity = '1'; });
+    clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(() => { el.style.opacity = '0'; }, 3200);
   }
 
   async handleDownload(it, width) {
@@ -368,6 +421,7 @@ class Component extends DCLogic {
         dragEndHandler: (e) => this.handleDragEnd(e),
         setRef,
         handleError: (e) => this.handleImgError(e),
+        loadHandler: (e) => this.handleImgLoad(e),
         resolutionOptions: this.RESOLUTIONS,
         selectedWidth,
         widthChangeHandler: (e) => {
